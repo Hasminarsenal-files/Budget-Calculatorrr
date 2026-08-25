@@ -82,6 +82,7 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 leftIcon={<Lock className="w-4 h-4" />}
+                showPasswordToggle
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

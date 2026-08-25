@@ -109,6 +109,7 @@ export default function RegisterPage() {
               type="password"
               placeholder="At least 6 characters"
               leftIcon={<Lock className="w-4 h-4" />}
+              showPasswordToggle
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
