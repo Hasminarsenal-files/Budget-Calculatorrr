@@ -131,17 +131,17 @@ export default function SavingsPage() {
       await db.savings_goals.update(selectedGoal.id, { current_amount: remainingVal });
       await syncManager.queueChange('savings_goals', 'UPDATE', selectedGoal.id, { ...selectedGoal, current_amount: remainingVal });
 
-      // 2. Log transaction under expense from savings
-      const purpose = withdrawDesc.trim() || `Spent for ${selectedGoal.name}`;
+      // 2. Log transfer transaction returning money to available balance
+      const purpose = withdrawDesc.trim() || `Withdrawn from ${selectedGoal.name}`;
       const newTx = {
         id: txId,
         user_id: profile.id,
-        description: `Used Savings: ${purpose}`,
+        description: `Withdrawn Savings: ${purpose}`,
         amount: spendVal,
-        type: 'expense' as const,
-        payment_method: `From Savings (${selectedGoal.name})`,
+        type: 'transfer' as const,
+        payment_method: `Transferred to Total Balance`,
         transaction_date: now,
-        notes: `Withdrawn from goal: ${selectedGoal.name}`,
+        notes: `Returned from savings goal '${selectedGoal.name}' into available total balance`,
         sync_status: 'pending' as const,
         created_at: now
       };
@@ -353,12 +353,12 @@ export default function SavingsPage() {
             />
 
             <p className="text-xs text-[#7C6E6A]">
-              This will deduct ₱{withdrawAmount || '0'} from your goal and automatically record an expense transaction in your history.
+              This will deduct ₱{withdrawAmount || '0'} from your savings goal and immediately add it back into your spendable Total Balance.
             </p>
 
             <div className="flex justify-end gap-2 pt-3">
               <Button type="button" variant="ghost" onClick={() => setIsWithdrawOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="sage" isLoading={isSubmitting}>Record Savings Expense 🐾</Button>
+              <Button type="submit" variant="sage" isLoading={isSubmitting}>Confirm Withdrawal to Balance 🐾</Button>
             </div>
           </form>
         </Modal>
