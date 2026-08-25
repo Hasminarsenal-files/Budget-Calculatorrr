@@ -61,17 +61,17 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', duration: 0.3 }}
-            className={`relative w-full ${widths[maxWidth]} bg-white rounded-3xl p-6 sm:p-8 border border-[#EFE6DD] shadow-warm-lg z-10`}
+            className={`relative w-full ${widths[maxWidth]} bg-white rounded-3xl p-6 sm:p-8 border border-[#EFE6DD] shadow-warm-lg z-10 my-auto max-h-[90vh] flex flex-col`}
           >
             {/* Header */}
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-4 flex-shrink-0">
               <div>
                 {title && <h2 className="text-xl font-bold text-[#3A2E2B]">{title}</h2>}
                 {description && <p className="text-xs text-[#7C6E6A] mt-1">{description}</p>}
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full text-[#7C6E6A] hover:bg-[#FAF6F0] hover:text-[#3A2E2B] transition-colors"
+                className="p-2 rounded-full text-[#7C6E6A] hover:bg-[#FAF6F0] hover:text-[#3A2E2B] transition-colors -mr-2 -mt-2"
                 aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
@@ -79,7 +79,7 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
 
             {/* Content */}
-            <div className="mt-2">{children}</div>
+            <div className="mt-2 overflow-y-auto pr-1 flex-1">{children}</div>
           </motion.div>
         </div>
       )}

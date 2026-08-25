@@ -558,10 +558,10 @@ export default function BudgetsPage() {
           onClose={() => setIsModalOpen(false)}
           title="Create New Budget"
           description="Define budget type, target amount, and category planned allocations."
-          maxWidth="xl"
+          maxWidth="lg"
         >
-          <form onSubmit={handleCreateBudget} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleCreateBudget} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Budget Name"
                 placeholder="e.g. Trip to Cebu 🏝️ or Monthly Household"
@@ -584,7 +584,7 @@ export default function BudgetsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input
                 label="Total Target Budget (₱)"
                 type="number"
@@ -612,13 +612,13 @@ export default function BudgetsPage() {
             </div>
 
             {/* Real-time Category Allocation Calculator */}
-            <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-4">
-              <div className="flex items-center justify-between border-b border-[#EFE6DD] pb-3">
+            <div className="bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#EFE6DD] space-y-3">
+              <div className="flex items-center justify-between border-b border-[#EFE6DD] pb-2">
                 <div>
-                  <h4 className="font-bold text-sm text-[#3A2E2B] flex items-center gap-1.5">
+                  <h4 className="font-bold text-xs sm:text-sm text-[#3A2E2B] flex items-center gap-1.5">
                     <PieChart className="w-4 h-4 text-[#6E8B74]" /> Category Planned Allocation
                   </h4>
-                  <p className="text-xs text-[#7C6E6A]">Assign planned amounts to each category.</p>
+                  <p className="text-[11px] text-[#7C6E6A]">Assign planned amounts to each category.</p>
                 </div>
                 <Badge variant={unallocatedRemaining >= 0 ? 'sage' : 'danger'}>
                   {percentageAllocated}% Allocated
@@ -628,28 +628,28 @@ export default function BudgetsPage() {
               {/* Allocation Summary Bar */}
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-white p-2 rounded-xl border border-[#EFE6DD]">
-                  <span className="text-[#7C6E6A]">Total Planned</span>
-                  <p className="font-bold text-[#3A2E2B]">{currency}{totalPlanned.toLocaleString()}</p>
+                  <span className="text-[#7C6E6A] block text-[11px]">Total Planned</span>
+                  <p className="font-bold text-[#3A2E2B]">₱{totalPlanned.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div className="bg-white p-2 rounded-xl border border-[#EFE6DD]">
-                  <span className="text-[#7C6E6A]">Unallocated</span>
+                  <span className="text-[#7C6E6A] block text-[11px]">Unallocated</span>
                   <p className={`font-bold ${unallocatedRemaining < 0 ? 'text-red-500' : 'text-[#6E8B74]'}`}>
-                    {currency}{unallocatedRemaining.toLocaleString()}
+                    ₱{unallocatedRemaining.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="bg-white p-2 rounded-xl border border-[#EFE6DD]">
-                  <span className="text-[#7C6E6A]">Allocated Share</span>
+                  <span className="text-[#7C6E6A] block text-[11px]">Allocated Share</span>
                   <p className="font-bold text-[#3A2E2B]">{percentageAllocated}%</p>
                 </div>
               </div>
 
               {/* Categories Table / List */}
-              <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                 {categories.map((cat, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-[#EFE6DD] text-xs font-semibold">
+                  <div key={idx} className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-[#EFE6DD] text-xs font-semibold">
                     <span>{cat.name}</span>
                     <div className="flex items-center gap-3">
-                      <span>{currency}{cat.planned.toLocaleString()}</span>
+                      <span className="text-[#6E8B74]">₱{cat.planned.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                       <button type="button" onClick={() => handleRemoveCategory(idx)} className="text-red-400 hover:text-red-600">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -659,23 +659,26 @@ export default function BudgetsPage() {
               </div>
 
               {/* Add Custom Category Row */}
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
                 <input
                   placeholder="Category Name (e.g. Transportation)"
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  className="flex-1 bg-white border border-[#EFE6DD] text-xs px-3 py-2 rounded-xl text-[#3A2E2B]"
+                  className="flex-1 bg-white border border-[#EFE6DD] text-xs px-3 py-2 rounded-xl text-[#3A2E2B] focus:outline-none focus:ring-1 focus:ring-[#6E8B74]"
                 />
-                <input
-                  type="number"
-                  placeholder="Planned Amount"
-                  value={newCatPlanned}
-                  onChange={(e) => setNewCatPlanned(e.target.value)}
-                  className="w-28 bg-white border border-[#EFE6DD] text-xs px-3 py-2 rounded-xl text-[#3A2E2B]"
-                />
-                <Button type="button" size="sm" variant="sage" onClick={handleAddCategory}>
-                  Add
-                </Button>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="₱ Amount"
+                    value={newCatPlanned}
+                    onChange={(e) => setNewCatPlanned(e.target.value)}
+                    className="w-28 bg-white border border-[#EFE6DD] text-xs px-3 py-2 rounded-xl text-[#3A2E2B] focus:outline-none focus:ring-1 focus:ring-[#6E8B74]"
+                  />
+                  <Button type="button" size="sm" variant="sage" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
 
