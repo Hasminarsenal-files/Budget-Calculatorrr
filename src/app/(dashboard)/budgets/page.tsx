@@ -24,11 +24,22 @@ export default function BudgetsPage() {
   const { profile } = useAuth();
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
+  const savings = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
+
+  // Available Total Balance calculation for reference
+  const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const totalSavings = savings.reduce((sum, s) => sum + s.current_amount, 0);
+  const availableTotalBalance = totalIncome - totalExpense - totalSavings;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [budgetToDelete, setGoalToDelete] = useState<Budget | null>(null);
+
+  // Add Funds Form
+  const [addFundsAmount, setAddFundsAmount] = useState('');
 
   // Withdraw / Spend from Budget Form
   const [spendAmount, setSpendAmount] = useState('');
@@ -122,6 +133,28 @@ export default function BudgetsPage() {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Error creating budget:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Add Funds to Budget (Increase Budget Cap)
+  const handleAddFundsToBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudget || !addFundsAmount || !profile) return;
+    setIsSubmitting(true);
+
+    try {
+      const addVal = parseFloat(addFundsAmount);
+      const updatedTotal = selectedBudget.total_budget + addVal;
+
+      await db.budgets.update(selectedBudget.id, { total_budget: updatedTotal });
+      await syncManager.queueChange('budgets', 'UPDATE', selectedBudget.id, { ...selectedBudget, total_budget: updatedTotal });
+
+      setAddFundsAmount('');
+      setIsAddFundsOpen(false);
+    } catch (err) {
+      console.error('Error adding funds to budget:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -269,25 +302,83 @@ export default function BudgetsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[#EFE6DD] flex items-center justify-between">
+                  <div className="pt-4 border-t border-[#EFE6DD] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                     <div>
                       <span className="text-xs text-[#7C6E6A] block">{b.start_date}</span>
                       <span className="font-bold text-xs text-[#3A2E2B]">₱{remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })} Left</span>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="sage"
-                      onClick={() => { setSelectedBudget(b); setIsWithdrawOpen(true); }}
-                    >
-                      💸 Spend / Withdraw
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setSelectedBudget(b); setIsWithdrawOpen(true); }}
+                      >
+                        💸 Spend / Withdraw
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="sage"
+                        onClick={() => { setSelectedBudget(b); setIsAddFundsOpen(true); }}
+                      >
+                        + Add Funds
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );
             })}
           </div>
         )}
+
+        {/* Add Funds to Budget Modal */}
+        <Modal
+          isOpen={isAddFundsOpen}
+          onClose={() => setIsAddFundsOpen(false)}
+          title={`Add Funds to ${selectedBudget?.name} 💰`}
+          description="Increase your planned budget cap."
+        >
+          {selectedBudget && (
+            <form onSubmit={handleAddFundsToBudget} className="space-y-4">
+              {/* Total Balance Reference Card */}
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-[#7C6E6A] uppercase tracking-wider block">Available Total Balance</span>
+                  <span className="text-xs text-[#7C6E6A]">Your current spendable money</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-black text-[#3A2E2B]">
+                    ₱{availableTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-[#EBF1EC] p-3 rounded-xl border border-[#D1E2D4] flex justify-between text-xs font-semibold text-[#6E8B74]">
+                <span>Current Budget Cap:</span>
+                <span>₱{selectedBudget.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+
+              <Input
+                label="Amount to Add to Budget (₱)"
+                type="number"
+                step="0.01"
+                placeholder="500.00"
+                value={addFundsAmount}
+                onChange={(e) => setAddFundsAmount(e.target.value)}
+                required
+              />
+
+              <p className="text-xs text-[#7C6E6A]">
+                This will increase the spending limit of {selectedBudget.name} to ₱{((selectedBudget.total_budget || 0) + (parseFloat(addFundsAmount) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <Button type="button" variant="ghost" onClick={() => setIsAddFundsOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="sage" isLoading={isSubmitting}>Confirm Add Funds 🐾</Button>
+              </div>
+            </form>
+          )}
+        </Modal>
 
         {/* Spend / Withdraw from Budget Modal */}
         <Modal
