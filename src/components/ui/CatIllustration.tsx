@@ -51,7 +51,7 @@ export const CatIllustration: React.FC<CatIllustrationProps> = ({
 
         {/* Coin in mouth or head */}
         <circle cx="50" cy="22" r="10" fill="#D99B26" stroke="#3A2E2B" strokeWidth="2.5" />
-        <text x="50" y="26" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#FFF">$</text>
+        <text x="50" y="26" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#FFF">₱</text>
       </svg>
     );
   }

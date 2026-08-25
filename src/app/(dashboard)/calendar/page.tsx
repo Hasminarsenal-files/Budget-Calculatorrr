@@ -116,7 +116,7 @@ export default function CalendarPage() {
                 }`}
               >
                 <span className="truncate">{b.name}</span>
-                <span>${b.amount}</span>
+                <span>₱{b.amount.toFixed(2)}</span>
               </button>
             );
           })}
@@ -192,7 +192,7 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[#7C6E6A]">Amount Due</span>
-                  <span className="text-lg font-black text-[#6E8B74]">${selectedItem.amount.toFixed(2)}</span>
+                  <span className="text-lg font-black text-[#6E8B74]">₱{selectedItem.amount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[#7C6E6A]">Due Date</span>

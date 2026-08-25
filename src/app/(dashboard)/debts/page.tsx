@@ -149,7 +149,7 @@ export default function DebtsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-bold text-base text-[#3A2E2B]">{d.name}</h3>
-                      <p className="text-xs text-[#7C6E6A]">Interest: {d.interest_rate}% | Min Pay: ${d.minimum_payment}</p>
+                      <p className="text-xs text-[#7C6E6A]">Interest: {d.interest_rate}% | Min Pay: ₱{d.minimum_payment.toFixed(2)}</p>
                     </div>
                     <Badge variant={isPaidOff ? 'sage' : 'peach'}>
                       {isPaidOff ? 'PAID OFF 🎉' : `${paidPct}% PAID`}
@@ -184,11 +184,11 @@ export default function DebtsPage() {
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Debt / Credit Balance">
           <form onSubmit={handleCreateDebt} className="space-y-4">
             <Input label="Debt Title" placeholder="e.g. Visa Credit Card, Student Loan" value={name} onChange={(e) => setName(e.target.value)} required />
-            <Input label="Original Total Amount ($)" type="number" step="0.01" placeholder="5000.00" value={originalAmount} onChange={(e) => setOriginalAmount(e.target.value)} required />
-            <Input label="Current Remaining Balance ($)" type="number" step="0.01" placeholder="4200.00" value={remainingAmount} onChange={(e) => setRemainingAmount(e.target.value)} />
+            <Input label="Original Total Amount (₱)" type="number" step="0.01" placeholder="5000.00" value={originalAmount} onChange={(e) => setOriginalAmount(e.target.value)} required />
+            <Input label="Current Remaining Balance (₱)" type="number" step="0.01" placeholder="4200.00" value={remainingAmount} onChange={(e) => setRemainingAmount(e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Interest Rate (%)" type="number" step="0.1" placeholder="18.5" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
-              <Input label="Minimum Monthly Payment ($)" type="number" step="0.01" placeholder="150.00" value={minimumPayment} onChange={(e) => setMinimumPayment(e.target.value)} />
+              <Input label="Minimum Monthly Payment (₱)" type="number" step="0.01" placeholder="150.00" value={minimumPayment} onChange={(e) => setMinimumPayment(e.target.value)} />
             </div>
             <Input label="Monthly Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             <div className="flex justify-end gap-2 pt-3">
@@ -201,7 +201,7 @@ export default function DebtsPage() {
         {/* Payment Modal */}
         <Modal isOpen={isPayModalOpen} onClose={() => setIsPayModalOpen(false)} title={`Make Payment to ${selectedDebt?.name}`}>
           <form onSubmit={handleRecordPayment} className="space-y-4">
-            <Input label="Payment Amount ($)" type="number" step="0.01" placeholder="150.00" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required />
+            <Input label="Payment Amount (₱)" type="number" step="0.01" placeholder="150.00" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required />
             <div className="flex justify-end gap-2 pt-3">
               <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>
               <Button type="submit" variant="peach">Record Payment 💳</Button>
