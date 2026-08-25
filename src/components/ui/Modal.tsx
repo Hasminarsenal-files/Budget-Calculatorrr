@@ -39,47 +39,51 @@ export const Modal: React.FC<ModalProps> = ({
     sm: 'max-w-sm',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    xl: 'max-w-3xl'
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-[#3A2E2B]/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-[#3A2E2B]/50 backdrop-blur-sm"
           />
 
           {/* Modal Box */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: 'spring', duration: 0.3 }}
-            className={`relative w-full ${widths[maxWidth]} bg-white rounded-3xl p-6 sm:p-8 border border-[#EFE6DD] shadow-warm-lg z-10 my-auto max-h-[90vh] flex flex-col`}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: 'spring', duration: 0.3, bounce: 0.1 }}
+            className={`relative w-full ${widths[maxWidth]} bg-white rounded-3xl border border-[#EFE6DD] shadow-2xl z-10 max-h-[85vh] flex flex-col overflow-hidden`}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4 flex-shrink-0">
-              <div>
-                {title && <h2 className="text-xl font-bold text-[#3A2E2B]">{title}</h2>}
-                {description && <p className="text-xs text-[#7C6E6A] mt-1">{description}</p>}
+            {/* Header (Sticky top) */}
+            {(title || description) && (
+              <div className="px-6 py-4 border-b border-[#EFE6DD] flex items-start justify-between flex-shrink-0 bg-[#FCF9F6]">
+                <div>
+                  {title && <h2 className="text-lg sm:text-xl font-black text-[#3A2E2B]">{title}</h2>}
+                  {description && <p className="text-xs text-[#7C6E6A] mt-0.5">{description}</p>}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-full text-[#7C6E6A] hover:bg-[#FAF6F0] hover:text-[#3A2E2B] transition-colors -mr-1"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full text-[#7C6E6A] hover:bg-[#FAF6F0] hover:text-[#3A2E2B] transition-colors -mr-2 -mt-2"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            )}
 
-            {/* Content */}
-            <div className="mt-2 overflow-y-auto pr-1 flex-1">{children}</div>
+            {/* Content (Scrollable interior) */}
+            <div className="px-6 py-5 overflow-y-auto flex-1 overscroll-contain">
+              {children}
+            </div>
           </motion.div>
         </div>
       )}
