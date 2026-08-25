@@ -1,0 +1,22 @@
+{
+  "name": "Budget Cat - Smart Personal Budgeting",
+  "short_name": "Budget Cat",
+  "description": "Production-quality offline-first personal budgeting application with smart sync.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#FAF6F0",
+  "theme_color": "#6E8B74",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/cat-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/cat-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
