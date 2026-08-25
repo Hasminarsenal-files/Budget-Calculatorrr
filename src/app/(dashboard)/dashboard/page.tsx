@@ -258,12 +258,13 @@ export default function DashboardPage() {
             badgeText="This Month"
           />
           <StatCard
-            title="Remaining Balance"
-            amount={`₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-            change={budgetCap > 0 ? `${100 - budgetUsedPct}% of budget left` : 'Income − Expenses'}
-            changeType={remainingBalance >= 0 ? 'positive' : 'negative'}
-            catMood={remainingBalance >= 0 ? 'happy' : 'warning'}
-            badgeText={remainingBalance >= 0 ? 'In the green 🟢' : 'Overspent 🔴'}
+            title="Total Savings"
+            amount={`₱${savings.reduce((sum, s) => sum + s.current_amount, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+            icon={<PiggyBank className="w-5 h-5 text-[#D99B26]" />}
+            change={`${goalProgressPct}% goal reached`}
+            changeType="positive"
+            catMood="saving"
+            badgeText="Goals Reserve"
           />
         </div>
 
