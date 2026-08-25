@@ -20,11 +20,10 @@ export default function SavingsPage() {
   const goals = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
 
-  // Calculate live available spendable balance
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const totalSavedAll = goals.reduce((sum, g) => sum + g.current_amount, 0);
-  const availableBalance = totalIncome - totalExpense - totalSavedAll;
+  const availableTotalBalance = totalIncome - totalExpense - totalSavedAll;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -312,30 +311,29 @@ export default function SavingsPage() {
         </Modal>
 
         {/* Add Deposit Modal */}
-        <Modal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} title={`Add Funds to ${selectedGoal?.name} 💰`}>
+        <Modal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} title={`Add Funds to ${selectedGoal?.name}`}>
           <form onSubmit={handleAddDeposit} className="space-y-4">
-            {/* Reference Card: Available Spendable Balance & Goal Needed Amount */}
-            <div className="grid grid-cols-2 gap-3 bg-[#FAF6F0] p-3.5 rounded-2xl border border-[#EFE6DD] text-xs">
+            {/* Total Balance Reference Card */}
+            <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] flex items-center justify-between">
               <div>
-                <span className="text-[#7C6E6A] block font-medium">Available Balance:</span>
-                <p className="text-sm font-black text-[#6E8B74]">₱{availableBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <span className="text-[11px] font-bold text-[#7C6E6A] uppercase tracking-wider block">Available Total Balance</span>
+                <span className="text-xs text-[#7C6E6A]">Your current spendable money</span>
               </div>
-              <div className="border-l border-[#EFE6DD] pl-3">
-                <span className="text-[#7C6E6A] block font-medium">Needed for Goal:</span>
-                <p className="text-sm font-black text-[#D99B26]">
-                  ₱{selectedGoal ? Math.max(0, selectedGoal.target_amount - selectedGoal.current_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
-                </p>
+              <div className="text-right">
+                <span className="text-lg font-black text-[#3A2E2B]">
+                  ₱{availableTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
 
             <p className="text-xs text-[#7C6E6A]">
-              Depositing funds into this goal reserves this money and logs a savings deposit transaction.
+              Depositing funds into this goal reserves this money and updates your spendable total balance.
             </p>
             <Input
               label="Deposit Amount (₱)"
               type="number"
               step="0.01"
-              max={availableBalance > 0 ? availableBalance : undefined}
+              max={Math.max(0, availableTotalBalance)}
               placeholder="100.00"
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
