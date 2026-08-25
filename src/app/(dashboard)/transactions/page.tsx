@@ -354,6 +354,7 @@ export default function TransactionsPage() {
                   <option value="Bank Transfer">Bank</option>
                   <option value="Debit Card">Debit Card</option>
                   <option value="Credit Card">Credit Card</option>
+                  <option value="From Savings">From Savings</option>
                   <option value="Other">Other</option>
                 </select>
               </div>

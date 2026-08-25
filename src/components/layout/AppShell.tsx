@@ -176,6 +176,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 <option value="Bank">Bank</option>
                 <option value="Debit Card">Debit Card</option>
                 <option value="Credit Card">Credit Card</option>
+                <option value="From Savings">From Savings</option>
               </select>
             </div>
           </div>
