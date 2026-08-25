@@ -226,11 +226,34 @@ export default function BudgetsPage() {
     }
   };
 
-  // Delete Budget
+  // Delete Budget (Restores unspent funds directly back to Total Balance)
   const confirmDeleteBudget = async () => {
-    if (!budgetToDelete) return;
+    if (!budgetToDelete || !profile) return;
     setIsSubmitting(true);
     try {
+      const remainingToReturn = Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0));
+
+      // 1. If unspent allocated funds exist, record a restoration transaction back into Total Balance
+      if (remainingToReturn > 0) {
+        const now = new Date().toISOString();
+        const txId = 'tx-budget-restore-' + Date.now();
+        const returnTx: Transaction = {
+          id: txId,
+          user_id: profile.id,
+          description: `Restored Funds: ${budgetToDelete.name}`,
+          amount: remainingToReturn,
+          type: 'income',
+          payment_method: 'Budget Return',
+          notes: `Restored remaining unspent budget funds from deleted tracker '${budgetToDelete.name}' into Available Total Balance`,
+          transaction_date: now,
+          sync_status: 'pending',
+          created_at: now
+        };
+        await db.transactions.put(returnTx);
+        await syncManager.queueChange('transactions', 'INSERT', txId, returnTx);
+      }
+
+      // 2. Delete budget and clean up
       await db.budgets.delete(budgetToDelete.id);
       await syncManager.queueChange('budgets', 'DELETE', budgetToDelete.id, null);
       setGoalToDelete(null);
@@ -489,13 +512,22 @@ export default function BudgetsPage() {
         >
           {budgetToDelete && (
             <div className="space-y-4">
-              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-1 text-xs">
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-2 text-xs">
                 <div className="flex justify-between font-bold text-[#3A2E2B] text-sm">
                   <span>{budgetToDelete.name}</span>
                   <span className="text-[#6E8B74]">Cap: ₱{budgetToDelete.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <p className="text-[#7C6E6A]">Spent: ₱{(budgetToDelete.spent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <div className="flex justify-between text-[#7C6E6A]">
+                  <span>Spent: ₱{(budgetToDelete.spent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-bold text-[#6E8B74]">
+                    +₱{Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })} to be returned
+                  </span>
+                </div>
               </div>
+
+              <p className="text-xs text-[#7C6E6A] leading-relaxed">
+                Deleting this budget tracker will automatically transfer its remaining unspent funds (<strong>₱{Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>) directly back into your <strong>Total Balance</strong>.
+              </p>
 
               <div className="flex justify-end gap-2 pt-2">
                 <Button
