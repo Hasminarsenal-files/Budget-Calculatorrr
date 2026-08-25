@@ -151,21 +151,13 @@ export default function MonthlyOverviewPage() {
             spentAmount={monthExpenses}
             totalBudget={budgetCap}
             savingsGoalProgress={Math.round((monthSavingsTotal / 3000) * 100)}
-            currencySymbol="$"
+            currencySymbol="₱"
             size={130}
           />
 
           <div className="flex flex-wrap gap-4 text-center md:text-right">
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
-              <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Income</span>
-              <p className="text-xl font-black text-[#6E8B74]">₱{monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
-              <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Expenses</span>
-              <p className="text-xl font-black text-[#E2856E]">₱{monthExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-            </div>
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
-              <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Remaining</span>
+            <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[140px]">
+              <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Remaining Balance</span>
               <p className="text-xl font-black text-[#3A2E2B]">₱{remainingMoney.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
