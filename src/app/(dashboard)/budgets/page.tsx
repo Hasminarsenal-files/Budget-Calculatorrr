@@ -138,7 +138,7 @@ export default function BudgetsPage() {
     }
   };
 
-  // Add Funds to Budget (Increase Budget Cap)
+  // Add Funds to Budget (Deducts from Total Balance and allocates to Budget)
   const handleAddFundsToBudget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBudget || !addFundsAmount || !profile) return;
@@ -147,9 +147,29 @@ export default function BudgetsPage() {
     try {
       const addVal = parseFloat(addFundsAmount);
       const updatedTotal = selectedBudget.total_budget + addVal;
+      const now = new Date().toISOString();
+      const txId = 'tx-budget-alloc-' + Date.now();
 
+      // 1. Update budget total cap in database
       await db.budgets.update(selectedBudget.id, { total_budget: updatedTotal });
       await syncManager.queueChange('budgets', 'UPDATE', selectedBudget.id, { ...selectedBudget, total_budget: updatedTotal });
+
+      // 2. Log allocation transaction to deduct from Total Balance
+      const newTx: Transaction = {
+        id: txId,
+        user_id: profile.id,
+        budget_id: selectedBudget.id,
+        description: `Budget Allocation: ${selectedBudget.name}`,
+        amount: addVal,
+        type: 'expense',
+        payment_method: 'Budget Allocation',
+        notes: `Transferred ₱${addVal.toLocaleString()} from Total Balance into ${selectedBudget.name}`,
+        transaction_date: now,
+        sync_status: 'pending',
+        created_at: now
+      };
+      await db.transactions.put(newTx);
+      await syncManager.queueChange('transactions', 'INSERT', txId, newTx);
 
       setAddFundsAmount('');
       setIsAddFundsOpen(false);
@@ -362,6 +382,7 @@ export default function BudgetsPage() {
                 label="Amount to Add to Budget (₱)"
                 type="number"
                 step="0.01"
+                max={Math.max(0, availableTotalBalance)}
                 placeholder="500.00"
                 value={addFundsAmount}
                 onChange={(e) => setAddFundsAmount(e.target.value)}
@@ -369,7 +390,7 @@ export default function BudgetsPage() {
               />
 
               <p className="text-xs text-[#7C6E6A]">
-                This will increase the spending limit of {selectedBudget.name} to ₱{((selectedBudget.total_budget || 0) + (parseFloat(addFundsAmount) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}.
+                This will deduct ₱{addFundsAmount || '0.00'} from your Available Total Balance and allocate it into {selectedBudget.name} (increasing cap to ₱{((selectedBudget.total_budget || 0) + (parseFloat(addFundsAmount) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}).
               </p>
 
               <div className="flex justify-end gap-2 pt-3">
