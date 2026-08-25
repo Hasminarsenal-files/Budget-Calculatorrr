@@ -131,7 +131,7 @@ export default function DebtsPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-[#E2856E] uppercase tracking-wider">Total Outstanding Debt</p>
-              <h2 className="text-3xl font-black text-[#3A2E2B]">${totalRemainingDebt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
+              <h2 className="text-3xl font-black text-[#3A2E2B]">₱{totalRemainingDebt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
             </div>
           </div>
           <Badge variant="peach">{debts.filter(d => d.status === 'active').length} Active Debts</Badge>
@@ -158,8 +158,8 @@ export default function DebtsPage() {
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold text-[#7C6E6A]">
-                      <span>Remaining: ${d.remaining_amount.toLocaleString()}</span>
-                      <span>Original: ${d.original_amount.toLocaleString()}</span>
+                      <span>Remaining: ₱{d.remaining_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span>Original: ₱{d.original_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="w-full bg-[#FAF6F0] h-3 rounded-full overflow-hidden border border-[#EFE6DD]">
                       <div className="bg-[#E2856E] h-full rounded-full transition-all duration-500" style={{ width: `${100 - paidPct}%` }} />

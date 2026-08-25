@@ -21,7 +21,7 @@ export interface StatCardProps {
 export const StatCard: React.FC<StatCardProps> = ({
   title,
   amount,
-  currency = '$',
+  currency = '₱',
   change,
   changeType = 'positive',
   icon,

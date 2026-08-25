@@ -115,8 +115,8 @@ export default function SavingsPage() {
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold text-[#7C6E6A]">
-                      <span>${g.current_amount.toLocaleString()}</span>
-                      <span>Target: ${g.target_amount.toLocaleString()}</span>
+                      <span>₱{g.current_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span>Target: ₱{g.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="w-full bg-[#FAF6F0] h-3 rounded-full overflow-hidden border border-[#EFE6DD]">
                       <div className="bg-[#D99B26] h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
@@ -125,7 +125,7 @@ export default function SavingsPage() {
                 </div>
 
                 <div className="pt-4 border-t border-[#EFE6DD] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#3A2E2B]">${(g.target_amount - g.current_amount).toLocaleString()} Remaining</span>
+                  <span className="text-xs font-bold text-[#3A2E2B]">₱{(g.target_amount - g.current_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} Remaining</span>
                   <Button size="sm" variant="sage" onClick={() => { setSelectedGoal(g); setIsDepositOpen(true); }}>
                     + Add Funds
                   </Button>
@@ -139,8 +139,8 @@ export default function SavingsPage() {
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create Savings Goal">
           <form onSubmit={handleCreateGoal} className="space-y-4">
             <Input label="Goal Name" placeholder="e.g. New Mac, House Fund, Emergency Reserve" value={name} onChange={(e) => setName(e.target.value)} required />
-            <Input label="Target Amount ($)" type="number" placeholder="5000.00" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} required />
-            <Input label="Current Initial Amount ($)" type="number" placeholder="0.00" value={currentAmount} onChange={(e) => setCurrentAmount(e.target.value)} />
+            <Input label="Target Amount (₱)" type="number" placeholder="5000.00" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} required />
+            <Input label="Current Initial Amount (₱)" type="number" placeholder="0.00" value={currentAmount} onChange={(e) => setCurrentAmount(e.target.value)} />
             <Input label="Target Date" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
             <div className="flex justify-end gap-2 pt-3">
               <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
@@ -152,7 +152,7 @@ export default function SavingsPage() {
         {/* Add Funds Modal */}
         <Modal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} title={`Add Funds to ${selectedGoal?.name}`}>
           <form onSubmit={handleAddDeposit} className="space-y-4">
-            <Input label="Deposit Amount ($)" type="number" step="0.01" placeholder="100.00" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} required />
+            <Input label="Deposit Amount (₱)" type="number" step="0.01" placeholder="100.00" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} required />
             <div className="flex justify-end gap-2 pt-3">
               <Button type="button" variant="ghost" onClick={() => setIsDepositOpen(false)}>Cancel</Button>
               <Button type="submit" variant="honey">Confirm Deposit 💰</Button>

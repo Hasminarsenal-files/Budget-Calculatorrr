@@ -158,15 +158,15 @@ export default function MonthlyOverviewPage() {
           <div className="flex flex-wrap gap-4 text-center md:text-right">
             <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
               <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Income</span>
-              <p className="text-xl font-black text-[#6E8B74]">${monthIncome.toLocaleString()}</p>
+              <p className="text-xl font-black text-[#6E8B74]">₱{monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
               <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Expenses</span>
-              <p className="text-xl font-black text-[#E2856E]">${monthExpenses.toLocaleString()}</p>
+              <p className="text-xl font-black text-[#E2856E]">₱{monthExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-white/80 p-3.5 rounded-2xl border border-[#EFE6DD] min-w-[120px]">
               <span className="text-[11px] font-bold uppercase text-[#7C6E6A]">Remaining</span>
-              <p className="text-xl font-black text-[#3A2E2B]">${remainingMoney.toLocaleString()}</p>
+              <p className="text-xl font-black text-[#3A2E2B]">₱{remainingMoney.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
         </Card>
@@ -175,25 +175,25 @@ export default function MonthlyOverviewPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard
             title="Monthly Income"
-            amount={`$${monthIncome.toLocaleString()}`}
+            amount={`₱${monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<TrendingUp className="w-5 h-5 text-[#6E8B74]" />}
             badgeText="Aug Inflow"
           />
           <StatCard
             title="Monthly Expenses"
-            amount={`$${monthExpenses.toLocaleString()}`}
+            amount={`₱${monthExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<TrendingDown className="w-5 h-5 text-[#E2856E]" />}
             badgeText="Actual Outflow"
           />
           <StatCard
             title="Total Savings"
-            amount={`$${monthSavingsTotal.toLocaleString()}`}
+            amount={`₱${monthSavingsTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<PiggyBank className="w-5 h-5 text-[#D99B26]" />}
             badgeText="Goals Reserve"
           />
           <StatCard
             title="Upcoming Bills"
-            amount={`$${monthBillsTotal.toLocaleString()}`}
+            amount={`₱${monthBillsTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<Receipt className="w-5 h-5 text-[#8C7CA6]" />}
             badgeText="Recurring"
           />
@@ -221,7 +221,7 @@ export default function MonthlyOverviewPage() {
                     <div className="flex items-center justify-between text-sm font-bold text-[#3A2E2B]">
                       <span>{b.name}</span>
                       <span className={pct > 90 ? 'text-[#E2856E]' : 'text-[#6E8B74]'}>
-                        ${spent.toLocaleString()} / ${b.total_budget.toLocaleString()} ({pct}%)
+                        ₱{spent.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ₱{b.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })} ({pct}%)
                       </span>
                     </div>
 
@@ -236,7 +236,7 @@ export default function MonthlyOverviewPage() {
 
                     <div className="flex justify-between text-xs text-[#7C6E6A]">
                       <span>Type: {b.budget_type.toUpperCase()}</span>
-                      <span>${(b.total_budget - spent).toLocaleString()} Remaining</span>
+                      <span>₱{(b.total_budget - spent).toLocaleString('en-US', { minimumFractionDigits: 2 })} Remaining</span>
                     </div>
                   </div>
                 );
@@ -281,7 +281,7 @@ export default function MonthlyOverviewPage() {
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     <span className="truncate max-w-[140px]">{item.name}</span>
                   </div>
-                  <span>${item.value.toLocaleString()}</span>
+                  <span>₱{item.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
               ))}
             </div>

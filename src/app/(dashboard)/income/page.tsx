@@ -103,7 +103,7 @@ export default function IncomePage() {
             </div>
             <div>
               <p className="text-xs font-bold text-[#6E8B74] uppercase tracking-wider">Total Recorded Income</p>
-              <h2 className="text-3xl font-black text-[#3A2E2B]">${totalIncomeAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
+              <h2 className="text-3xl font-black text-[#3A2E2B]">₱{totalIncomeAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
             </div>
           </div>
           <Badge variant="sage">Active Streams</Badge>
@@ -130,7 +130,7 @@ export default function IncomePage() {
 
               <div className="pt-3 border-t border-[#EFE6DD] flex items-center justify-between">
                 <span className="text-xs text-[#7C6E6A]">{inc.date}</span>
-                <span className="text-xl font-black text-[#6E8B74]">+${inc.amount.toLocaleString()}</span>
+                <span className="text-xl font-black text-[#6E8B74]">+₱{inc.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
             </Card>
           ))}
@@ -140,7 +140,7 @@ export default function IncomePage() {
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Income Source">
           <form onSubmit={handleAddIncome} className="space-y-4">
             <Input label="Income Source" placeholder="e.g. Primary Salary, Freelance Design" value={source} onChange={(e) => setSource(e.target.value)} required />
-            <Input label="Amount ($)" type="number" step="0.01" placeholder="3500.00" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            <Input label="Amount (₱)" type="number" step="0.01" placeholder="3500.00" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <Input label="Notes" placeholder="Additional details..." value={notes} onChange={(e) => setNotes(e.target.value)} />
             <div className="flex justify-end gap-2 pt-3">
