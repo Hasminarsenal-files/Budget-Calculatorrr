@@ -7,17 +7,20 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
 import { Bill, RecurringFrequency } from '@/lib/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Receipt, Plus, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Receipt, Plus, CheckCircle, Trash2 } from 'lucide-react';
 
 export default function BillsPage() {
   const { profile } = useAuth();
   const bills = useLiveQuery(() => db.bills.toArray(), []) || [];
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -62,15 +65,15 @@ export default function BillsPage() {
     }
   };
 
-  const toggleBillPaid = async (bill: Bill) => {
-    const newStatus = bill.status === 'paid' ? 'pending' : 'paid';
-    await db.bills.update(bill.id, { status: newStatus });
-    await syncManager.queueChange('bills', 'UPDATE', bill.id, { ...bill, status: newStatus });
+  // When marking as paid, record as expense and remove from active bills
+  const handleMarkAsPaid = async (bill: Bill) => {
+    if (!profile) return;
 
-    // If marked as paid, record as expense transaction
-    if (newStatus === 'paid' && profile) {
-      const txId = 'tx-bill-' + Date.now();
+    try {
       const now = new Date().toISOString();
+      const txId = 'tx-bill-' + Date.now();
+
+      // 1. Record payment in transactions
       const newTx = {
         id: txId,
         user_id: profile.id,
@@ -79,13 +82,36 @@ export default function BillsPage() {
         type: 'expense' as const,
         payment_method: 'Auto Pay / Bill',
         transaction_date: now,
+        notes: `Settled recurring bill due on ${bill.due_date}`,
         sync_status: 'pending' as const,
         created_at: now
       };
       await db.transactions.put(newTx);
       await syncManager.queueChange('transactions', 'INSERT', txId, newTx);
+
+      // 2. Remove the paid bill from active bills
+      await db.bills.delete(bill.id);
+      await syncManager.queueChange('bills', 'DELETE', bill.id, null);
+    } catch (err) {
+      console.error('Error marking bill as paid:', err);
     }
   };
+
+  const confirmDeleteBill = async () => {
+    if (!billToDelete) return;
+    setIsProcessing(true);
+    try {
+      await db.bills.delete(billToDelete.id);
+      await syncManager.queueChange('bills', 'DELETE', billToDelete.id, null);
+      setBillToDelete(null);
+    } catch (err) {
+      console.error('Error deleting bill:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const activeBills = bills.filter(b => b.status !== 'paid');
 
   return (
     <AppShell>
@@ -100,45 +126,62 @@ export default function BillsPage() {
           </Button>
         </div>
 
-        {/* Bills List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bills.map((b) => {
-            const isPaid = b.status === 'paid';
-            const isOverdue = !isPaid && new Date(b.due_date) < new Date();
+        {/* Bills List or Empty State */}
+        {activeBills.length === 0 ? (
+          <EmptyState
+            type="bills"
+            onAction={() => setIsModalOpen(true)}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeBills.map((b) => {
+              const isOverdue = new Date(b.due_date) < new Date();
 
-            return (
-              <Card key={b.id} className="space-y-4 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl ${isPaid ? 'bg-[#EBF1EC] text-[#6E8B74]' : isOverdue ? 'bg-red-50 text-red-500' : 'bg-[#FFF8EA] text-[#D99B26]'}`}>
-                      <Receipt className="w-5 h-5" />
+              return (
+                <Card key={b.id} className="space-y-4 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-2xl ${isOverdue ? 'bg-red-50 text-red-500' : 'bg-[#FFF8EA] text-[#D99B26]'}`}>
+                        <Receipt className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-[#3A2E2B]">{b.name}</h3>
+                        <p className="text-xs text-[#7C6E6A]">Due: {b.due_date} ({b.recurring})</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-base text-[#3A2E2B]">{b.name}</h3>
-                      <p className="text-xs text-[#7C6E6A]">Due: {b.due_date} ({b.recurring})</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={isOverdue ? 'danger' : 'honey'}>
+                        {isOverdue ? 'OVERDUE' : 'PENDING'}
+                      </Badge>
+                      <button
+                        type="button"
+                        title="Delete bill"
+                        onClick={() => setBillToDelete(b)}
+                        className="text-red-400 hover:text-red-600 p-1.5 rounded-xl hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <Badge variant={isPaid ? 'sage' : isOverdue ? 'danger' : 'honey'}>
-                    {isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
-                  </Badge>
-                </div>
 
-                <div className="pt-3 border-t border-[#EFE6DD] flex items-center justify-between">
-                  <span className="text-xl font-black text-[#3A2E2B]">₱{b.amount.toFixed(2)}</span>
-                  <Button
-                    size="sm"
-                    variant={isPaid ? 'outline' : 'sage'}
-                    onClick={() => toggleBillPaid(b)}
-                  >
-                    {isPaid ? 'Mark Pending' : 'Mark as Paid'}
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                  <div className="pt-3 border-t border-[#EFE6DD] flex items-center justify-between">
+                    <span className="text-xl font-black text-[#3A2E2B]">₱{b.amount.toFixed(2)}</span>
+                    <Button
+                      size="sm"
+                      variant="sage"
+                      leftIcon={<CheckCircle className="w-4 h-4" />}
+                      onClick={() => handleMarkAsPaid(b)}
+                    >
+                      Mark as Paid
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Modal */}
+        {/* Add New Bill Modal */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Bill">
           <form onSubmit={handleAddBill} className="space-y-4">
             <Input label="Bill Name" placeholder="e.g. Electric Utility, Netflix, Rent" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -158,6 +201,45 @@ export default function BillsPage() {
               <Button type="submit" variant="sage" isLoading={isSubmitting}>Save Bill 🐾</Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Delete Confirmation Popup Modal */}
+        <Modal
+          isOpen={!!billToDelete}
+          onClose={() => setBillToDelete(null)}
+          title="Delete Bill Reminder? 🗑️"
+          description="Please confirm if you want to delete this bill."
+        >
+          {billToDelete && (
+            <div className="space-y-4">
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-1 text-xs">
+                <div className="flex justify-between font-bold text-[#3A2E2B] text-sm">
+                  <span>{billToDelete.name}</span>
+                  <span className="text-[#E2856E]">₱{billToDelete.amount.toFixed(2)}</span>
+                </div>
+                <p className="text-[#7C6E6A]">Due: {billToDelete.due_date} ({billToDelete.recurring})</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setBillToDelete(null)}
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="peach"
+                  onClick={confirmDeleteBill}
+                  isLoading={isProcessing}
+                >
+                  Yes, Delete Bill
+                </Button>
+              </div>
+            </div>
+          )}
         </Modal>
       </div>
     </AppShell>
