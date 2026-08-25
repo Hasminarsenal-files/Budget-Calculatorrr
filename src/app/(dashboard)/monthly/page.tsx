@@ -63,22 +63,22 @@ export default function MonthlyOverviewPage() {
     });
   }, [transactions, currentDate]);
 
-  // Calculations for active month
+  // Calculations for active month — no hardcoded fallbacks, real data only
   const monthIncome = monthTransactions
     .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0) || 4500;
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const monthExpenses = monthTransactions
     .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0) || 1845;
+    .reduce((sum, t) => sum + t.amount, 0);
 
-  const monthSavingsTotal = savings.reduce((sum, s) => sum + s.current_amount, 0) || 1950;
-  const monthBillsTotal = bills.reduce((sum, b) => sum + b.amount, 0) || 320;
+  const monthSavingsTotal = savings.reduce((sum, s) => sum + s.current_amount, 0);
+  const monthBillsTotal = bills.reduce((sum, b) => sum + b.amount, 0);
   const remainingMoney = monthIncome - monthExpenses;
 
   // Active Monthly Budget Target
-  const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 4000, spent_amount: monthExpenses };
-  const budgetCap = primaryBudget.total_budget || 4000;
+  const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 0, spent_amount: 0 };
+  const budgetCap = primaryBudget.total_budget || 0;
 
   // Category Breakdown for current month
   const categoryData = useMemo(() => {

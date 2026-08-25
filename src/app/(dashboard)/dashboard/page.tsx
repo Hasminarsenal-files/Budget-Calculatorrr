@@ -156,35 +156,58 @@ export default function DashboardPage() {
     seedInitialData();
   }, [profile]);
 
-  // Calculations
-  const totalIncome = transactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0) || 3800;
+  // ─── Calculations (single source of truth: actual transactions) ───
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-  const totalExpense = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0) || 1065.50;
+  // Current-month transactions only
+  const monthTransactions = transactions.filter(t => {
+    const d = new Date(t.transaction_date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
 
+  // All-time totals (used for Total Balance card)
+  const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const totalBalance = totalIncome - totalExpense;
-  const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 4500, spent_amount: totalExpense };
-  const remainingBudget = (primaryBudget.total_budget || 4500) - (primaryBudget.spent_amount || totalExpense);
 
-  const topGoal = savings[0] || { name: 'Savings Reserve', current_amount: 1950, target_amount: 3000 };
-  const goalProgressPct = Math.round((topGoal.current_amount / topGoal.target_amount) * 100);
+  // Current-month totals (Remaining Balance = income - expenses, same formula as Monthly page)
+  const monthIncome = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const monthExpense = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const remainingBalance = monthIncome - monthExpense;
 
+  // Budget cap from primary monthly budget
+  const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 0, spent_amount: 0 };
+  const budgetCap = primaryBudget.total_budget || 0;
+  const budgetUsedPct = budgetCap > 0 ? Math.round((monthExpense / budgetCap) * 100) : 0;
+
+  const topGoal = savings[0] || { name: 'Savings Reserve', current_amount: 0, target_amount: 1 };
+  const goalProgressPct = topGoal.target_amount > 0 ? Math.round((topGoal.current_amount / topGoal.target_amount) * 100) : 0;
+
+  // Trend chart — previous months hardcoded for demo, current month from real data
   const trendData = [
     { month: 'May', Income: 3200, Expense: 2100 },
     { month: 'Jun', Income: 3800, Expense: 2400 },
     { month: 'Jul', Income: 4100, Expense: 2700 },
-    { month: 'Aug', Income: totalIncome, Expense: totalExpense }
+    { month: now.toLocaleDateString('en-US', { month: 'short' }), Income: totalIncome, Expense: totalExpense }
   ];
 
-  const categoryPieData = [
-    { name: 'Groceries & Dining', value: 450, color: '#6E8B74' },
-    { name: 'Travel & Trips', value: 380, color: '#E2856E' },
-    { name: 'Bills & Subscriptions', value: 185, color: '#D99B26' },
-    { name: 'Savings Reserve', value: 850, color: '#5A96B6' }
-  ];
+  // Pie chart — built from real current-month expense transactions
+  const categoryMap: Record<string, number> = {};
+  monthTransactions.filter(t => t.type === 'expense').forEach(t => {
+    const cat = t.notes || t.description || 'General';
+    categoryMap[cat] = (categoryMap[cat] || 0) + t.amount;
+  });
+  const pieColors = ['#6E8B74', '#E2856E', '#D99B26', '#8C7CA6', '#5A96B6'];
+  const categoryPieData = Object.entries(categoryMap).length > 0
+    ? Object.entries(categoryMap).map(([name, value], i) => ({ name, value, color: pieColors[i % pieColors.length] }))
+    : [
+        { name: 'Groceries & Dining', value: 450, color: '#6E8B74' },
+        { name: 'Travel & Trips', value: 380, color: '#E2856E' },
+        { name: 'Bills & Subscriptions', value: 185, color: '#D99B26' },
+        { name: 'Savings Reserve', value: 850, color: '#5A96B6' }
+      ];
 
   return (
     <AppShell>
@@ -215,31 +238,32 @@ export default function DashboardPage() {
           <StatCard
             title="Total Balance"
             amount={`₱${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-            change="+12.5%"
-            changeType="positive"
+            change={totalBalance >= 0 ? 'Surplus' : 'Deficit'}
+            changeType={totalBalance >= 0 ? 'positive' : 'negative'}
             catMood="rich"
-            badgeText="Net Surplus"
+            badgeText="Net Worth"
           />
           <StatCard
-            title="Total Income"
-            amount={`₱${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+            title="Monthly Income"
+            amount={`₱${monthIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<TrendingUp className="w-5 h-5 text-[#6E8B74]" />}
             changeType="positive"
-            badgeText="Aug Inflow"
+            badgeText="This Month"
           />
           <StatCard
-            title="Total Expenses"
-            amount={`₱${totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+            title="Monthly Expenses"
+            amount={`₱${monthExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             icon={<TrendingDown className="w-5 h-5 text-[#E2856E]" />}
             changeType="negative"
-            badgeText="Under Cap"
+            badgeText="This Month"
           />
           <StatCard
-            title="Remaining Budget"
-            amount={`₱${remainingBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-            change={`${Math.round((remainingBudget / primaryBudget.total_budget) * 100)}% left`}
-            catMood="happy"
-            badgeText="Safe Cap"
+            title="Remaining Balance"
+            amount={`₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+            change={budgetCap > 0 ? `${100 - budgetUsedPct}% of budget left` : 'Income − Expenses'}
+            changeType={remainingBalance >= 0 ? 'positive' : 'negative'}
+            catMood={remainingBalance >= 0 ? 'happy' : 'warning'}
+            badgeText={remainingBalance >= 0 ? 'In the green 🟢' : 'Overspent 🔴'}
           />
         </div>
 
