@@ -124,7 +124,7 @@ export default function BillsPage() {
                 </div>
 
                 <div className="pt-3 border-t border-[#EFE6DD] flex items-center justify-between">
-                  <span className="text-xl font-black text-[#3A2E2B]">${b.amount.toFixed(2)}</span>
+                  <span className="text-xl font-black text-[#3A2E2B]">₱{b.amount.toFixed(2)}</span>
                   <Button
                     size="sm"
                     variant={isPaid ? 'outline' : 'sage'}
@@ -142,7 +142,7 @@ export default function BillsPage() {
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Bill">
           <form onSubmit={handleAddBill} className="space-y-4">
             <Input label="Bill Name" placeholder="e.g. Electric Utility, Netflix, Rent" value={name} onChange={(e) => setName(e.target.value)} required />
-            <Input label="Amount ($)" type="number" step="0.01" placeholder="85.00" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            <Input label="Amount (₱)" type="number" step="0.01" placeholder="85.00" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             <Input label="Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
             <div>
               <label className="text-xs font-semibold text-[#3A2E2B] mb-1.5 block">Frequency</label>

@@ -25,6 +25,9 @@ export default function IncomePage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const totalIncomeAmount = incomeList.reduce((sum, item) => sum + item.amount, 0);
 
   const handleAddIncome = async (e: React.FormEvent) => {
@@ -77,9 +80,18 @@ export default function IncomePage() {
     }
   };
 
-  const handleDeleteIncome = async (id: string) => {
-    await db.income.delete(id);
-    await syncManager.queueChange('income', 'DELETE', id, null);
+  const confirmDelete = async () => {
+    if (!incomeToDelete) return;
+    setIsDeleting(true);
+    try {
+      await db.income.delete(incomeToDelete.id);
+      await syncManager.queueChange('income', 'DELETE', incomeToDelete.id, null);
+      setIncomeToDelete(null);
+    } catch (err) {
+      console.error('Error deleting income:', err);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -123,7 +135,12 @@ export default function IncomePage() {
                     <p className="text-xs text-[#7C6E6A]">{inc.notes || 'Direct Deposit'}</p>
                   </div>
                 </div>
-                <button onClick={() => handleDeleteIncome(inc.id)} className="text-red-400 hover:text-red-600 p-1">
+                <button
+                  type="button"
+                  title="Delete income"
+                  onClick={() => setIncomeToDelete(inc)}
+                  className="text-red-400 hover:text-red-600 p-1.5 rounded-xl hover:bg-red-50 transition-colors"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -136,7 +153,7 @@ export default function IncomePage() {
           ))}
         </div>
 
-        {/* Modal */}
+        {/* Add Income Modal */}
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Income Source">
           <form onSubmit={handleAddIncome} className="space-y-4">
             <Input label="Income Source" placeholder="e.g. Primary Salary, Freelance Design" value={source} onChange={(e) => setSource(e.target.value)} required />
@@ -148,6 +165,50 @@ export default function IncomePage() {
               <Button type="submit" variant="sage" isLoading={isSubmitting}>Save Income Stream 🐾</Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Delete Confirmation Popup Modal */}
+        <Modal
+          isOpen={!!incomeToDelete}
+          onClose={() => setIncomeToDelete(null)}
+          title="Delete Income Source? 🗑️"
+          description="Please confirm if you wish to remove this income record."
+        >
+          {incomeToDelete && (
+            <div className="space-y-4">
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-1 text-xs">
+                <div className="flex justify-between font-bold text-[#3A2E2B] text-sm">
+                  <span>{incomeToDelete.source}</span>
+                  <span className="text-[#6E8B74]">+₱{incomeToDelete.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <p className="text-[#7C6E6A]">Date: {incomeToDelete.date}</p>
+                {incomeToDelete.notes && <p className="text-[#7C6E6A]">Notes: {incomeToDelete.notes}</p>}
+              </div>
+
+              <p className="text-xs text-[#7C6E6A] leading-relaxed">
+                Deleting this income stream will update your total recorded income and spendable balance.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIncomeToDelete(null)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="peach"
+                  onClick={confirmDelete}
+                  isLoading={isDeleting}
+                >
+                  Yes, Delete Income
+                </Button>
+              </div>
+            </div>
+          )}
         </Modal>
       </div>
     </AppShell>
