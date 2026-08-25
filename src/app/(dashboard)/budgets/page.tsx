@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
-import { Budget, BudgetType } from '@/lib/types';
+import { Budget, BudgetType, Transaction } from '@/lib/types';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Wallet, Plus, Calendar, Tag, Plane, Sparkles, Trash2, PieChart } from 'lucide-react';
+import { Wallet, Plus, Calendar, Tag, Plane, Sparkles, Trash2, PieChart, ArrowUpRight, DollarSign } from 'lucide-react';
 
 interface CustomCategoryItem {
   name: string;
@@ -22,8 +23,20 @@ interface CustomCategoryItem {
 export default function BudgetsPage() {
   const { profile } = useAuth();
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [budgetToDelete, setGoalToDelete] = useState<Budget | null>(null);
+
+  // Withdraw / Spend from Budget Form
+  const [spendAmount, setSpendAmount] = useState('');
+  const [spendDesc, setSpendDesc] = useState('');
+  const [spendCategory, setSpendCategory] = useState('');
+  const [spendPaymentMethod, setSpendPaymentMethod] = useState('GCash');
+
+  // Create Budget Form
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [budgetType, setBudgetType] = useState<BudgetType>('monthly');
@@ -114,6 +127,67 @@ export default function BudgetsPage() {
     }
   };
 
+  // Withdraw / Spend from Budget
+  const handleWithdrawFromBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudget || !spendAmount || !profile) return;
+    setIsSubmitting(true);
+
+    try {
+      const amountVal = parseFloat(spendAmount);
+      const updatedSpent = (selectedBudget.spent_amount || 0) + amountVal;
+      const now = new Date().toISOString();
+      const txId = 'tx-budget-' + Date.now();
+
+      // 1. Update budget spent amount
+      await db.budgets.update(selectedBudget.id, { spent_amount: updatedSpent });
+      await syncManager.queueChange('budgets', 'UPDATE', selectedBudget.id, { ...selectedBudget, spent_amount: updatedSpent });
+
+      // 2. Log transaction in transactions table
+      const desc = spendDesc.trim() || `Expense for ${selectedBudget.name}`;
+      const newTx: Transaction = {
+        id: txId,
+        user_id: profile.id,
+        budget_id: selectedBudget.id,
+        description: desc,
+        amount: amountVal,
+        type: 'expense',
+        payment_method: spendPaymentMethod,
+        notes: `Budget: ${selectedBudget.name}${spendCategory ? ` • ${spendCategory}` : ''}`,
+        transaction_date: now,
+        sync_status: 'pending',
+        created_at: now
+      };
+
+      await db.transactions.put(newTx);
+      await syncManager.queueChange('transactions', 'INSERT', txId, newTx);
+
+      setSpendAmount('');
+      setSpendDesc('');
+      setSpendCategory('');
+      setIsWithdrawOpen(false);
+    } catch (err) {
+      console.error('Error recording budget withdrawal/expense:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Delete Budget
+  const confirmDeleteBudget = async () => {
+    if (!budgetToDelete) return;
+    setIsSubmitting(true);
+    try {
+      await db.budgets.delete(budgetToDelete.id);
+      await syncManager.queueChange('budgets', 'DELETE', budgetToDelete.id, null);
+      setGoalToDelete(null);
+    } catch (err) {
+      console.error('Error deleting budget:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const budgetTypesList: { type: BudgetType; label: string; icon: string }[] = [
     { type: 'monthly', label: 'Monthly Budget', icon: '🗓️' },
     { type: 'weekly', label: 'Weekly Budget', icon: '📅' },
@@ -138,56 +212,202 @@ export default function BudgetsPage() {
           </Button>
         </div>
 
-        {/* Budgets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {budgets.map((b) => {
-            const spent = b.spent_amount || 0;
-            const pct = Math.min(100, Math.round((spent / b.total_budget) * 100));
+        {/* Budgets Grid or Empty State */}
+        {budgets.length === 0 ? (
+          <EmptyState
+            type="budgets"
+            onAction={() => setIsModalOpen(true)}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {budgets.map((b) => {
+              const spent = b.spent_amount || 0;
+              const remaining = Math.max(0, b.total_budget - spent);
+              const pct = Math.min(100, Math.round((spent / b.total_budget) * 100));
 
-            return (
-              <Card key={b.id} className="space-y-5 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#EBF1EC] text-[#6E8B74] rounded-2xl">
-                        <Wallet className="w-5 h-5" />
+              return (
+                <Card key={b.id} className="space-y-5 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-[#EBF1EC] text-[#6E8B74] rounded-2xl">
+                          <Wallet className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-base text-[#3A2E2B]">{b.name}</h3>
+                          <p className="text-xs text-[#7C6E6A] truncate max-w-[160px]">{b.description || 'Custom Budget'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-base text-[#3A2E2B]">{b.name}</h3>
-                        <p className="text-xs text-[#7C6E6A] truncate max-w-[160px]">{b.description || 'Custom Budget'}</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={b.budget_type === 'monthly' ? 'sage' : 'peach'}>
+                          {b.budget_type.toUpperCase()}
+                        </Badge>
+                        <button
+                          type="button"
+                          title="Delete budget"
+                          onClick={() => setGoalToDelete(b)}
+                          className="text-red-400 hover:text-red-600 p-1.5 rounded-xl hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <Badge variant={b.budget_type === 'monthly' ? 'sage' : 'peach'}>
-                      {b.budget_type.toUpperCase()}
-                    </Badge>
+
+                    <div className="space-y-1.5 pt-2">
+                      <div className="flex justify-between text-xs font-semibold text-[#7C6E6A]">
+                        <span>Spent: ₱{spent.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        <span>Cap: ₱{b.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="w-full bg-[#FAF6F0] h-3 rounded-full overflow-hidden border border-[#EFE6DD]">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            pct > 90 ? 'bg-[#E2856E]' : 'bg-[#6E8B74]'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5 pt-2">
-                    <div className="flex justify-between text-xs font-semibold text-[#7C6E6A]">
-                      <span>Spent: ₱{spent.toLocaleString()}</span>
-                      <span>Cap: ₱{b.total_budget.toLocaleString()}</span>
+                  <div className="pt-4 border-t border-[#EFE6DD] flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-[#7C6E6A] block">{b.start_date}</span>
+                      <span className="font-bold text-xs text-[#3A2E2B]">₱{remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })} Left</span>
                     </div>
-                    <div className="w-full bg-[#FAF6F0] h-3 rounded-full overflow-hidden border border-[#EFE6DD]">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          pct > 90 ? 'bg-[#E2856E]' : 'bg-[#6E8B74]'
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="sage"
+                      onClick={() => { setSelectedBudget(b); setIsWithdrawOpen(true); }}
+                    >
+                      💸 Spend / Withdraw
+                    </Button>
                   </div>
-                </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="pt-4 border-t border-[#EFE6DD] flex items-center justify-between text-xs font-medium text-[#7C6E6A]">
-                  <span>{b.start_date} {b.end_date ? `→ ${b.end_date}` : ''}</span>
-                  <span className="font-bold text-[#3A2E2B]">₱{(b.total_budget - spent).toLocaleString()} Left</span>
+        {/* Spend / Withdraw from Budget Modal */}
+        <Modal
+          isOpen={isWithdrawOpen}
+          onClose={() => setIsWithdrawOpen(false)}
+          title={`Spend / Withdraw from ${selectedBudget?.name} 💸`}
+          description="Record an expense or payment allocated from this budget."
+        >
+          {selectedBudget && (
+            <form onSubmit={handleWithdrawFromBudget} className="space-y-4">
+              {/* Budget Capacity Reference Card */}
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[#7C6E6A] block">Remaining in this Budget:</span>
+                  <span className="text-base font-black text-[#6E8B74]">
+                    ₱{Math.max(0, selectedBudget.total_budget - (selectedBudget.spent_amount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
+                <div className="text-right">
+                  <span className="text-[#7C6E6A] block">Total Cap:</span>
+                  <span className="font-bold text-[#3A2E2B]">
+                    ₱{selectedBudget.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
 
-        {/* Intuitive Create Budget Modal with Category Allocation Math */}
+              <Input
+                label="Amount to Spend / Withdraw (₱)"
+                type="number"
+                step="0.01"
+                placeholder="e.g. 500.00"
+                value={spendAmount}
+                onChange={(e) => setSpendAmount(e.target.value)}
+                required
+              />
+
+              <Input
+                label="Description / Purpose"
+                placeholder="e.g. Hotel Reservation, Flight, Grocery, Dinner"
+                value={spendDesc}
+                onChange={(e) => setSpendDesc(e.target.value)}
+                required
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Category (Optional)"
+                  placeholder="e.g. Food, Flight, Hotel"
+                  value={spendCategory}
+                  onChange={(e) => setSpendCategory(e.target.value)}
+                />
+
+                <div>
+                  <label className="text-xs font-semibold text-[#3A2E2B] mb-1.5 block">Payment Method</label>
+                  <select
+                    value={spendPaymentMethod}
+                    onChange={(e) => setSpendPaymentMethod(e.target.value)}
+                    className="w-full bg-white border border-[#EFE6DD] text-[#3A2E2B] rounded-2xl px-4 py-2.5 text-sm"
+                  >
+                    <option value="GCash">GCash</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Debit Card">Debit Card</option>
+                    <option value="Credit Card">Credit Card</option>
+                  </select>
+                </div>
+              </div>
+
+              <p className="text-xs text-[#7C6E6A]">
+                This will record an expense in your transaction history and update the spent amount of {selectedBudget.name}.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <Button type="button" variant="ghost" onClick={() => setIsWithdrawOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="sage" isLoading={isSubmitting}>Record Budget Expense 🐾</Button>
+              </div>
+            </form>
+          )}
+        </Modal>
+
+        {/* Delete Budget Confirmation Modal */}
+        <Modal
+          isOpen={!!budgetToDelete}
+          onClose={() => setGoalToDelete(null)}
+          title="Delete Budget Tracker? 🗑️"
+          description="Please confirm if you wish to remove this budget."
+        >
+          {budgetToDelete && (
+            <div className="space-y-4">
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-1 text-xs">
+                <div className="flex justify-between font-bold text-[#3A2E2B] text-sm">
+                  <span>{budgetToDelete.name}</span>
+                  <span className="text-[#6E8B74]">Cap: ₱{budgetToDelete.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <p className="text-[#7C6E6A]">Spent: ₱{(budgetToDelete.spent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setGoalToDelete(null)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="peach"
+                  onClick={confirmDeleteBudget}
+                  isLoading={isSubmitting}
+                >
+                  Yes, Delete Budget
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Create Budget Modal */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
@@ -221,7 +441,7 @@ export default function BudgetsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
-                label="Total Target Budget"
+                label="Total Target Budget (₱)"
                 type="number"
                 step="0.01"
                 placeholder="4000.00"
