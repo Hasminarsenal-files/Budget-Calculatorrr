@@ -406,10 +406,6 @@ export default function SavingsPage() {
                 <p className="text-[#7C6E6A]">Target: ₱{goalToDelete.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
               </div>
 
-              <p className="text-xs text-[#7C6E6A] leading-relaxed">
-                Deleting this savings goal will automatically restore its saved funds (<strong>₱{goalToDelete.current_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>) directly back into your <strong>Total Balance</strong>.
-              </p>
-
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"

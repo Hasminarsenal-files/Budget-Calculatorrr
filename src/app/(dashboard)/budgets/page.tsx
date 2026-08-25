@@ -226,39 +226,40 @@ export default function BudgetsPage() {
     }
   };
 
-  // Delete Budget (Restores unspent funds directly back to Total Balance)
+  // Delete Budget (Automatically refunds remaining unspent capital back to Total Balance)
   const confirmDeleteBudget = async () => {
     if (!budgetToDelete || !profile) return;
     setIsSubmitting(true);
     try {
-      const remainingToReturn = Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0));
+      const unspentCapital = Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0));
 
-      // 1. If unspent allocated funds exist, record a restoration transaction back into Total Balance
-      if (remainingToReturn > 0) {
+      // 1. If there are unspent funds remaining, refund them directly back into Total Balance
+      if (unspentCapital > 0) {
         const now = new Date().toISOString();
-        const txId = 'tx-budget-restore-' + Date.now();
-        const returnTx: Transaction = {
+        const txId = 'tx-budget-refund-' + Date.now();
+        const refundTx: Transaction = {
           id: txId,
           user_id: profile.id,
-          description: `Restored Funds: ${budgetToDelete.name}`,
-          amount: remainingToReturn,
+          description: `Budget Capital Refund: ${budgetToDelete.name}`,
+          amount: unspentCapital,
           type: 'income',
-          payment_method: 'Budget Return',
-          notes: `Restored remaining unspent budget funds from deleted tracker '${budgetToDelete.name}' into Available Total Balance`,
+          payment_method: 'Budget Closure',
+          notes: `Unspent capital refunded from deleted budget '${budgetToDelete.name}' into Total Balance`,
           transaction_date: now,
           sync_status: 'pending',
           created_at: now
         };
-        await db.transactions.put(returnTx);
-        await syncManager.queueChange('transactions', 'INSERT', txId, returnTx);
+        await db.transactions.put(refundTx);
+        await syncManager.queueChange('transactions', 'INSERT', txId, refundTx);
       }
 
-      // 2. Delete budget and clean up
+      // 2. Delete budget from database
       await db.budgets.delete(budgetToDelete.id);
       await syncManager.queueChange('budgets', 'DELETE', budgetToDelete.id, null);
+
       setGoalToDelete(null);
     } catch (err) {
-      console.error('Error deleting budget:', err);
+      console.error('Error deleting budget and refunding capital:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -515,11 +516,11 @@ export default function BudgetsPage() {
               <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-2 text-xs">
                 <div className="flex justify-between font-bold text-[#3A2E2B] text-sm">
                   <span>{budgetToDelete.name}</span>
-                  <span className="text-[#6E8B74]">Cap: ₱{budgetToDelete.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-[#3A2E2B]">Cap: ₱{budgetToDelete.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between text-[#7C6E6A]">
+                <div className="flex justify-between text-[#7C6E6A] font-semibold">
                   <span>Spent: ₱{(budgetToDelete.spent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  <span className="font-bold text-[#6E8B74]">
+                  <span className="text-[#6E8B74] font-bold">
                     +₱{Math.max(0, budgetToDelete.total_budget - (budgetToDelete.spent_amount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })} to be returned
                   </span>
                 </div>
