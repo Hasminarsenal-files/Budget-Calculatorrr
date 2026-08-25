@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
 import { Transaction, TransactionType } from '@/lib/types';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useOnlineStatus } from '@/lib/hooks/useOnlineStatus';
 import { 
   ArrowLeftRight, 
   Plus, 
@@ -27,8 +28,14 @@ import {
 
 export default function TransactionsPage() {
   const { profile } = useAuth();
+  const isOnline = useOnlineStatus();
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
+
+  // Trigger sync on page load to flush any pending queue
+  useEffect(() => {
+    syncManager.sync();
+  }, []);
 
   // Filter & Search Controls
   const [searchTerm, setSearchTerm] = useState('');
@@ -268,13 +275,13 @@ export default function TransactionsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {tx.sync_status === 'pending' ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-[#E2856E] font-semibold bg-[#FDF1EE] px-2.5 py-1 rounded-full">
-                          <WifiOff className="w-3 h-3" /> Saved Offline
-                        </span>
-                      ) : (
+                      {isOnline || tx.sync_status === 'synced' ? (
                         <span className="inline-flex items-center gap-1 text-xs text-[#6E8B74] font-semibold bg-[#EBF1EC] px-2.5 py-1 rounded-full">
                           <CheckCircle2 className="w-3 h-3" /> Synced
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-[#E2856E] font-semibold bg-[#FDF1EE] px-2.5 py-1 rounded-full">
+                          <WifiOff className="w-3 h-3" /> Saved Offline
                         </span>
                       )}
                     </td>

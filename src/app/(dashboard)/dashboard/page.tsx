@@ -35,10 +35,12 @@ import {
   Pie, 
   Cell 
 } from 'recharts';
+import { useOnlineStatus } from '@/lib/hooks/useOnlineStatus';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { profile } = useAuth();
+  const isOnline = useOnlineStatus();
   
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
@@ -457,7 +459,7 @@ export default function DashboardPage() {
                     {tx.type === 'expense' ? '-' : '+'}₱{tx.amount.toFixed(2)}
                   </p>
                   <span className="text-[10px] text-[#7C6E6A]">
-                    {tx.sync_status === 'pending' ? 'Saved Offline 📱' : 'Synced ☁️'}
+                    {isOnline || tx.sync_status === 'synced' ? 'Synced ☁️' : 'Saved Offline 📱'}
                   </span>
                 </div>
               </div>

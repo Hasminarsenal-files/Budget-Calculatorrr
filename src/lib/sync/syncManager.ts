@@ -101,6 +101,34 @@ class SyncManager {
     }
 
     if (!isSupabaseConfigured()) {
+      try {
+        const queueItems = await db.sync_queue.toArray();
+        for (const item of queueItems) {
+          const table = (db as any)[item.table_name];
+          if (table) {
+            await table.update(item.record_id, {
+              sync_status: 'synced',
+              last_synced_at: new Date().toISOString()
+            });
+          }
+        }
+        await db.sync_queue.clear();
+
+        // Mark any remaining local pending records as synced
+        const tables = ['transactions', 'budgets', 'income', 'bills', 'savings_goals', 'debts'] as const;
+        for (const tableName of tables) {
+          const table = (db as any)[tableName];
+          if (table) {
+            const pendings = await table.where('sync_status').equals('pending').toArray();
+            for (const record of pendings) {
+              await table.update(record.id, { sync_status: 'synced' });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[SyncManager] Local sync error:', e);
+      }
+
       await this.updatePendingCount();
       this.updateState('synced');
       return;
