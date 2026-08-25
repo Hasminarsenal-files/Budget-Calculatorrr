@@ -74,7 +74,7 @@ export default function MonthlyOverviewPage() {
 
   const monthSavingsTotal = savings.reduce((sum, s) => sum + s.current_amount, 0);
   const monthBillsTotal = bills.reduce((sum, b) => sum + b.amount, 0);
-  const remainingMoney = monthIncome - monthExpenses;
+  const remainingMoney = monthIncome - monthExpenses - monthSavingsTotal;
 
   // Active Monthly Budget Target
   const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 0, spent_amount: 0 };

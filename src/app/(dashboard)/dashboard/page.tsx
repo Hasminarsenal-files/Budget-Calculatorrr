@@ -167,15 +167,16 @@ export default function DashboardPage() {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
 
-  // All-time totals (used for Total Balance card)
+  // All-time totals (Total Balance = Income - Expenses - Savings allocated)
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  const totalBalance = totalIncome - totalExpense;
+  const totalSavings = savings.reduce((sum, s) => sum + s.current_amount, 0);
+  const totalBalance = totalIncome - totalExpense - totalSavings;
 
-  // Current-month totals (Remaining Balance = income - expenses, same formula as Monthly page)
+  // Current-month totals (Remaining Balance = income - expenses - savings)
   const monthIncome = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const monthExpense = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  const remainingBalance = monthIncome - monthExpense;
+  const remainingBalance = monthIncome - monthExpense - totalSavings;
 
   // Budget cap from primary monthly budget
   const primaryBudget = budgets.find(b => b.budget_type === 'monthly') || budgets[0] || { total_budget: 0, spent_amount: 0 };
@@ -238,10 +239,10 @@ export default function DashboardPage() {
           <StatCard
             title="Total Balance"
             amount={`₱${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-            change={totalBalance >= 0 ? 'Surplus' : 'Deficit'}
+            change={totalBalance >= 0 ? 'Spendable' : 'Deficit'}
             changeType={totalBalance >= 0 ? 'positive' : 'negative'}
             catMood="rich"
-            badgeText="Net Worth"
+            badgeText="After Savings"
           />
           <StatCard
             title="Monthly Income"
