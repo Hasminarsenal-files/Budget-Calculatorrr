@@ -10,7 +10,7 @@ import { CatIllustration } from '@/components/ui/CatIllustration';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSync } from '@/lib/hooks/useSync';
 import { db } from '@/lib/db';
-import { User, Phone, Mail, Globe, RefreshCw, Trash2, CheckCircle2, Shield, LogOut } from 'lucide-react';
+import { User, Phone, Mail, Globe, RefreshCw, Trash2, CheckCircle2, Shield, LogOut, Download, Upload } from 'lucide-react';
 import { CatMood } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
@@ -63,11 +63,70 @@ export default function SettingsPage() {
     }
   };
 
+  const handleExportData = async () => {
+    try {
+      const backupData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        profile: profile,
+        budgets: await db.budgets.toArray(),
+        budgetCategories: await db.budget_categories.toArray(),
+        transactions: await db.transactions.toArray(),
+        income: await db.income.toArray(),
+        bills: await db.bills.toArray(),
+        savingsGoals: await db.savings_goals.toArray(),
+        debts: await db.debts.toArray(),
+      };
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `budget-cat-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export error:', e);
+      alert('Failed to export backup.');
+    }
+  };
+
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (data.budgets && data.budgets.length > 0) await db.budgets.bulkPut(data.budgets);
+      if (data.budgetCategories && data.budgetCategories.length > 0) await db.budget_categories.bulkPut(data.budgetCategories);
+      if (data.transactions && data.transactions.length > 0) await db.transactions.bulkPut(data.transactions);
+      if (data.income && data.income.length > 0) await db.income.bulkPut(data.income);
+      if (data.bills && data.bills.length > 0) await db.bills.bulkPut(data.bills);
+      if (data.savingsGoals && data.savingsGoals.length > 0) await db.savings_goals.bulkPut(data.savingsGoals);
+      if (data.debts && data.debts.length > 0) await db.debts.bulkPut(data.debts);
+      if (data.profile) {
+        localStorage.setItem('budget_cat_cached_user', JSON.stringify(data.profile));
+        await db.profiles.put(data.profile);
+      }
+
+      alert('Backup imported successfully! Reloading data... 🐾');
+      window.location.reload();
+    } catch (err) {
+      console.error('Import error:', err);
+      alert('Invalid backup file. Please make sure to select a valid Budget Cat JSON backup.');
+    }
+  };
+
   const handleClearCache = async () => {
     if (confirm('Are you sure you want to clear local IndexedDB cache? Local unsynced changes will be lost.')) {
       await db.sync_queue.clear();
       await db.transactions.clear();
       await db.budgets.clear();
+      await db.income.clear();
+      await db.bills.clear();
+      await db.savings_goals.clear();
+      await db.debts.clear();
       window.location.reload();
     }
   };
@@ -215,6 +274,44 @@ export default function SettingsPage() {
             >
               Clear Local Cache
             </Button>
+          </div>
+        </Card>
+
+        {/* Cross-Device Data Transfer & Backup Card */}
+        <Card className="space-y-4">
+          <CardHeader>
+            <div>
+              <CardTitle>Transfer & Backup Data 📲</CardTitle>
+              <CardDescription>Export your transactions, income, and budgets to sync with your phone or PC</CardDescription>
+            </div>
+          </CardHeader>
+
+          <p className="text-xs text-[#7C6E6A] leading-relaxed">
+            Move your budget records between devices in 1-click without requiring third-party cloud logins. Export a backup JSON file from this device and import it on your phone or laptop.
+          </p>
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button
+              variant="sage"
+              size="sm"
+              leftIcon={<Download className="w-4 h-4" />}
+              onClick={handleExportData}
+            >
+              Export Data Backup (.json)
+            </Button>
+
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportData}
+                className="hidden"
+              />
+              <span className="inline-flex items-center justify-center font-medium rounded-2xl whitespace-nowrap transition-all duration-200 border-2 border-[#EFE6DD] bg-white text-[#3A2E2B] hover:bg-[#FAF6F0] px-3 py-1.5 text-xs gap-1.5 shadow-sm">
+                <Upload className="w-4 h-4 text-[#6E8B74]" />
+                <span>Import Backup File</span>
+              </span>
+            </label>
           </div>
         </Card>
 
