@@ -320,7 +320,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
-      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      setIsOfflineMode(false);
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+        // Clear any Supabase local storage tokens
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('budget_cat_cached_user'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch (e) {
+        console.warn('[AuthContext] Local storage cleanup error:', e);
+      }
       setLoading(false);
     }
   };

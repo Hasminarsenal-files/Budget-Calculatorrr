@@ -238,7 +238,7 @@ export default function SettingsPage() {
               leftIcon={<LogOut className="w-4 h-4" />}
               onClick={async () => {
                 await logoutUser();
-                router.push('/login');
+                window.location.href = '/login';
               }}
             >
               Sign Out of Budget Cat

@@ -20,7 +20,7 @@ export const Header: React.FC = () => {
     }
     setDropdownOpen(false);
     await logoutUser();
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   return (

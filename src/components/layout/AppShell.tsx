@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, navigationItems } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
@@ -8,6 +8,7 @@ import { PWAInstallBanner } from '../PWAInstallBanner';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { CatIllustration } from '../ui/CatIllustration';
 import { usePathname, useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
@@ -20,8 +21,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   // Quick Add Form state
-  const { profile, logoutUser } = useAuth();
+  const { user, profile, loading, logoutUser } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user && !profile) {
+      router.replace('/login');
+    }
+  }, [loading, user, profile, router]);
+
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'expense' | 'income'>('expense');
@@ -64,6 +72,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       setIsSubmitting(false);
     }
   };
+
+  if (loading || (!user && !profile)) {
+    return (
+      <div className="min-h-screen bg-[#FAF6F0] flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-3">
+          <CatIllustration mood="sleeping" size={64} className="mx-auto animate-pulse" />
+          <p className="text-xs font-bold text-[#7C6E6A]">Loading Budget Cat...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] text-[#3A2E2B] flex">
@@ -119,7 +138,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 onClick={async () => {
                   setMobileDrawerOpen(false);
                   await logoutUser();
-                  router.push('/login');
+                  window.location.href = '/login';
                 }}
                 className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 transition-colors"
               >
