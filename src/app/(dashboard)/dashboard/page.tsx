@@ -47,16 +47,44 @@ export default function DashboardPage() {
   const savings = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
   const bills = useLiveQuery(() => db.bills.toArray(), []) || [];
 
-  // Seed sample initial data if completely empty
+  // Seed sample initial data if completely empty & auto-align across devices
   useEffect(() => {
     async function seedInitialData() {
+      const now = new Date().toISOString();
+      const userId = profile?.id || 'default-user';
+
+      // Auto-migrate any device that has the legacy seed data
+      const existingSavings = await db.savings_goals.toArray();
+      const existingTx = await db.transactions.toArray();
+      
+      const hasOldSeedSavings = existingSavings.some(s => s.id === 'sg-1' && s.current_amount === 1950);
+      const hasSalary4034 = existingTx.some(t => t.amount === 4034 || t.description.toLowerCase().includes('salary'));
+
+      if (hasOldSeedSavings || !hasSalary4034) {
+        if (hasOldSeedSavings) {
+          await db.savings_goals.update('sg-1', { current_amount: 1000 });
+        }
+        if (!hasSalary4034) {
+          await db.transactions.put({
+            id: 'tx-3',
+            user_id: userId,
+            description: 'Salary Compensation',
+            amount: 4034.00,
+            type: 'income',
+            payment_method: 'Bank',
+            transaction_date: now,
+            sync_status: 'synced',
+            created_at: now
+          });
+        }
+      }
+
       const budgetCount = await db.budgets.count();
-      if (budgetCount === 0 && profile) {
-        const now = new Date().toISOString();
+      if (budgetCount === 0) {
         const initialBudgets: Budget[] = [
           {
             id: 'b-1',
-            user_id: profile.id,
+            user_id: userId,
             name: 'Monthly Household Budget',
             budget_type: 'monthly',
             total_budget: 4500,
@@ -68,7 +96,7 @@ export default function DashboardPage() {
           },
           {
             id: 'b-2',
-            user_id: profile.id,
+            user_id: userId,
             name: 'Cebu Island Trip 🏝️',
             budget_type: 'travel',
             total_budget: 2500,
@@ -86,7 +114,7 @@ export default function DashboardPage() {
           const sampleTx: Transaction[] = [
             {
               id: 'tx-1',
-              user_id: profile.id,
+              user_id: userId,
               budget_id: 'b-1',
               description: 'Supermarket Grocery & Food',
               amount: 145.50,
@@ -98,12 +126,23 @@ export default function DashboardPage() {
             },
             {
               id: 'tx-2',
-              user_id: profile.id,
+              user_id: userId,
               description: 'Primary Salary Direct Deposit',
               amount: 3800.00,
               type: 'income',
               payment_method: 'Bank Transfer',
               transaction_date: new Date(Date.now() - 172800000).toISOString(),
+              sync_status: 'synced',
+              created_at: now
+            },
+            {
+              id: 'tx-3',
+              user_id: userId,
+              description: 'Salary Compensation',
+              amount: 4034.00,
+              type: 'income',
+              payment_method: 'Bank',
+              transaction_date: now,
               sync_status: 'synced',
               created_at: now
             }
@@ -116,7 +155,7 @@ export default function DashboardPage() {
           await db.bills.bulkPut([
             {
               id: 'bill-1',
-              user_id: profile.id,
+              user_id: userId,
               name: 'Electricity & Utility',
               amount: 120.00,
               due_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
@@ -127,7 +166,7 @@ export default function DashboardPage() {
             },
             {
               id: 'bill-2',
-              user_id: profile.id,
+              user_id: userId,
               name: 'Fiber Internet Subscription',
               amount: 65.00,
               due_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
@@ -143,10 +182,10 @@ export default function DashboardPage() {
         if (savingsCount === 0) {
           await db.savings_goals.put({
             id: 'sg-1',
-            user_id: profile.id,
+            user_id: userId,
             name: 'New Laptop & Desk Setup',
             target_amount: 3000,
-            current_amount: 1950,
+            current_amount: 1000,
             target_date: '2026-12-31',
             icon: 'Laptop',
             sync_status: 'synced',
