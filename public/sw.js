@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-cat-v1';
+const CACHE_NAME = 'budget-cat-v2';
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
@@ -35,6 +35,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Never cache API sync requests
+  if (event.request.url.includes('/api/')) return;
 
   event.respondWith(
     fetch(event.request)

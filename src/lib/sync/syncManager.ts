@@ -101,32 +101,61 @@ class SyncManager {
     }
 
     if (!isSupabaseConfigured()) {
-      try {
-        const queueItems = await db.sync_queue.toArray();
-        for (const item of queueItems) {
-          const table = (db as any)[item.table_name];
-          if (table) {
-            await table.update(item.record_id, {
-              sync_status: 'synced',
-              last_synced_at: new Date().toISOString()
-            });
-          }
-        }
-        await db.sync_queue.clear();
+      this.isSyncing = true;
+      this.updateState('syncing');
 
-        // Mark any remaining local pending records as synced
-        const tables = ['transactions', 'budgets', 'income', 'bills', 'savings_goals', 'debts'] as const;
-        for (const tableName of tables) {
-          const table = (db as any)[tableName];
-          if (table) {
-            const pendings = await table.where('sync_status').equals('pending').toArray();
-            for (const record of pendings) {
-              await table.update(record.id, { sync_status: 'synced' });
-            }
+      try {
+        const cachedUserStr = typeof window !== 'undefined' ? localStorage.getItem('budget_cat_cached_user') : null;
+        const cachedUser = cachedUserStr ? JSON.parse(cachedUserStr) : null;
+        const userIdentifier = cachedUser?.email || cachedUser?.full_name || cachedUser?.id || 'default-user';
+
+        // 1. Gather all local table data
+        const localTables = {
+          budgets: await db.budgets.toArray(),
+          budget_categories: await db.budget_categories.toArray(),
+          transactions: await db.transactions.toArray(),
+          income: await db.income.toArray(),
+          bills: await db.bills.toArray(),
+          savings_goals: await db.savings_goals.toArray(),
+          debts: await db.debts.toArray(),
+          profiles: cachedUser ? [cachedUser] : []
+        };
+
+        // 2. Push local data & pull server updates
+        const res = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: userIdentifier,
+            email: cachedUser?.email,
+            tables: localTables
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const serverData = json.data;
+
+          if (serverData) {
+            if (serverData.budgets && serverData.budgets.length > 0) await db.budgets.bulkPut(serverData.budgets);
+            if (serverData.budget_categories && serverData.budget_categories.length > 0) await db.budget_categories.bulkPut(serverData.budget_categories);
+            if (serverData.transactions && serverData.transactions.length > 0) await db.transactions.bulkPut(serverData.transactions);
+            if (serverData.income && serverData.income.length > 0) await db.income.bulkPut(serverData.income);
+            if (serverData.bills && serverData.bills.length > 0) await db.bills.bulkPut(serverData.bills);
+            if (serverData.savings_goals && serverData.savings_goals.length > 0) await db.savings_goals.bulkPut(serverData.savings_goals);
+            if (serverData.debts && serverData.debts.length > 0) await db.debts.bulkPut(serverData.debts);
+          }
+
+          await db.sync_queue.clear();
+          this.lastSyncedAt = new Date().toISOString();
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('budget_cat_last_synced', this.lastSyncedAt);
           }
         }
       } catch (e) {
-        console.warn('[SyncManager] Local sync error:', e);
+        console.warn('[SyncManager] Automatic /api/sync error:', e);
+      } finally {
+        this.isSyncing = false;
       }
 
       await this.updatePendingCount();

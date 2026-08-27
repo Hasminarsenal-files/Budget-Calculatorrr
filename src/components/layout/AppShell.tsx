@@ -30,6 +30,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
   }, [loading, user, profile, router]);
 
+  useEffect(() => {
+    syncManager.sync();
+  }, []);
+
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'expense' | 'income'>('expense');
