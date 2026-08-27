@@ -23,6 +23,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   // Quick Add Form state
   const { user, profile, loading, logoutUser } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user && !profile) {
@@ -129,37 +130,78 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <PWAInstallBanner />
 
       {/* Mobile Bottom Bar Navigation */}
-      <MobileNav onOpenDrawer={() => setMobileDrawerOpen(true)} />
+      <MobileNav 
+        onOpenDrawer={() => setMobileDrawerOpen(true)} 
+        onOpenQuickAdd={() => setQuickAddOpen(true)} 
+      />
 
       {/* Mobile Navigation Drawer Modal */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-[#3A2E2B]/40 backdrop-blur-sm">
-          <div className="bg-white rounded-t-3xl p-6 border-t border-[#EFE6DD] shadow-warm-lg space-y-4">
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-[#3A2E2B]/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl p-6 border-t border-[#EFE6DD] shadow-warm-lg space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-[#EFE6DD] pb-3">
-              <h3 className="text-lg font-bold text-[#3A2E2B]">All Sections</h3>
-              <button onClick={() => setMobileDrawerOpen(false)} className="p-1 text-[#7C6E6A]">
+              <div className="flex items-center gap-2">
+                <CatIllustration mood="happy" size={28} />
+                <h3 className="text-base font-black text-[#3A2E2B]">All Menu & Sections 🐾</h3>
+              </div>
+              <button 
+                onClick={() => setMobileDrawerOpen(false)} 
+                className="p-1.5 rounded-full hover:bg-[#FAF6F0] text-[#7C6E6A]"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pt-2">
+            {/* Quick Action in Mobile Drawer */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileDrawerOpen(false);
+                setQuickAddOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#6E8B74] hover:bg-[#5C7862] text-white text-xs font-bold shadow-md shadow-[#6E8B74]/20 active:scale-[0.98] transition-all"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ New Transaction</span>
+            </button>
+
+            {/* Grid of all 11 Navigation sections */}
+            <div className="grid grid-cols-2 gap-2 overflow-y-auto pt-1 pb-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
+                const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="flex items-center gap-3 p-3 rounded-2xl bg-[#FAF6F0] hover:bg-[#EBF1EC] text-[#3A2E2B] text-xs font-bold border border-[#EFE6DD]"
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl text-xs font-bold border transition-all ${
+                      isActive 
+                        ? 'bg-[#EBF1EC] border-[#6E8B74] text-[#6E8B74] shadow-sm' 
+                        : 'bg-[#FAF6F0] hover:bg-[#EBF1EC] text-[#3A2E2B] border-[#EFE6DD]'
+                    }`}
                   >
-                    <Icon className="w-4 h-4 text-[#6E8B74]" />
-                    <span>{item.name}</span>
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#6E8B74]' : 'text-[#7C6E6A]'}`} />
+                    <span className="truncate">{item.name}</span>
                   </Link>
                 );
               })}
             </div>
 
-            <div className="pt-2 border-t border-[#EFE6DD]">
+            {/* Sync & Logout Footer */}
+            <div className="pt-3 border-t border-[#EFE6DD] flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  await syncManager.sync();
+                  setMobileDrawerOpen(false);
+                  window.location.reload();
+                }}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-2xl bg-[#FAF6F0] hover:bg-[#EBF1EC] text-[#6E8B74] text-xs font-bold border border-[#EFE6DD] transition-colors"
+              >
+                <span>☁️ Force Cloud Sync Now</span>
+              </button>
+
               <button
                 type="button"
                 onClick={async () => {
@@ -167,7 +209,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   await logoutUser();
                   window.location.href = '/login';
                 }}
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 transition-colors"
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 transition-colors"
               >
                 <LogOut className="w-4 h-4 text-red-500" />
                 <span>Sign Out of Account</span>
