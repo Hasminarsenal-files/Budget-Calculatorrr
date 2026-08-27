@@ -32,7 +32,28 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, [loading, user, profile, router]);
 
   useEffect(() => {
+    // Initial sync
     syncManager.sync();
+
+    // Sync on tab focus or when network comes back online
+    const handleFocus = () => {
+      syncManager.sync();
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleFocus);
+
+    // Live continuous sync polling every 4 seconds when tab is active
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && navigator.onLine) {
+        syncManager.sync();
+      }
+    }, 4000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
 
   const [desc, setDesc] = useState('');
