@@ -35,13 +35,17 @@ export default function BudgetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
+  const [isReturnFundsOpen, setIsReturnFundsOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [budgetToDelete, setGoalToDelete] = useState<Budget | null>(null);
 
   // Add Funds Form
   const [addFundsAmount, setAddFundsAmount] = useState('');
 
-  // Withdraw / Spend from Budget Form
+  // Withdraw / Return Funds to Total Balance Form
+  const [withdrawFundsAmount, setWithdrawFundsAmount] = useState('');
+
+  // Spend / Record Expense from Budget Form
   const [spendAmount, setSpendAmount] = useState('');
   const [spendDesc, setSpendDesc] = useState('');
   const [spendCategory, setSpendCategory] = useState('');
@@ -182,7 +186,72 @@ export default function BudgetsPage() {
     }
   };
 
-  // Withdraw / Spend from Budget
+  // Withdraw / Return Funds from Budget BACK to Total Balance (Adds to Total Balance!)
+  const handleReturnFundsToBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudget || !withdrawFundsAmount) return;
+    setIsSubmitting(true);
+
+    try {
+      const withdrawVal = parseFloat(withdrawFundsAmount);
+      if (isNaN(withdrawVal) || withdrawVal <= 0) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      const remainingUnspent = Math.max(0, selectedBudget.total_budget - (selectedBudget.spent_amount || 0));
+      const validWithdraw = Math.min(withdrawVal, remainingUnspent);
+      const newTotalBudget = Math.max(0, selectedBudget.total_budget - validWithdraw);
+      const now = new Date().toISOString();
+      const txId = 'tx-budget-return-' + Date.now();
+      const userId = profile?.id || user?.id || 'offline-user';
+
+      // 1. Update budget cap in database
+      await db.budgets.update(selectedBudget.id, { total_budget: newTotalBudget });
+      await syncManager.queueChange('budgets', 'UPDATE', selectedBudget.id, { ...selectedBudget, total_budget: newTotalBudget });
+
+      // 2. Log income transaction that directly adds to Total Balance
+      const returnTx: Transaction = {
+        id: txId,
+        user_id: userId,
+        budget_id: selectedBudget.id,
+        description: `Withdrawn from ${selectedBudget.name}`,
+        amount: validWithdraw,
+        type: 'income',
+        payment_method: 'Budget Return',
+        notes: `Returned funds from budget '${selectedBudget.name}' into Available Total Balance`,
+        transaction_date: now,
+        sync_status: 'pending',
+        created_at: now
+      };
+      await db.transactions.put(returnTx);
+      await syncManager.queueChange('transactions', 'INSERT', txId, returnTx);
+
+      // 3. Record in income table
+      const incId = 'inc-budget-' + Date.now();
+      const incRecord = {
+        id: incId,
+        user_id: userId,
+        source: `Withdrawn from ${selectedBudget.name}`,
+        amount: validWithdraw,
+        date: now.slice(0, 10),
+        notes: `Returned funds from budget into Total Balance`,
+        sync_status: 'pending' as const,
+        created_at: now
+      };
+      await db.income.put(incRecord);
+      await syncManager.queueChange('income', 'INSERT', incId, incRecord);
+
+      setWithdrawFundsAmount('');
+      setIsReturnFundsOpen(false);
+    } catch (err) {
+      console.error('Error withdrawing funds from budget:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Spend / Record Expense from Budget
   const handleWithdrawFromBudget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBudget || !spendAmount) return;
@@ -355,19 +424,27 @@ export default function BudgetsPage() {
                       <span className="font-bold text-xs text-[#3A2E2B]">₱{remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })} Left</span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:flex items-center gap-2">
+                    <div className="grid grid-cols-3 sm:flex items-center gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full sm:w-auto text-xs px-3 py-2 justify-center"
+                        className="w-full sm:w-auto text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 justify-center"
                         onClick={() => { setSelectedBudget(b); setIsWithdrawOpen(true); }}
                       >
                         💸 Spend
                       </Button>
                       <Button
                         size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 justify-center text-[#6E8B74] border-[#6E8B74]/30 hover:bg-[#EBF1EC]"
+                        onClick={() => { setSelectedBudget(b); setIsReturnFundsOpen(true); }}
+                      >
+                        ↩️ Withdraw
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="sage"
-                        className="w-full sm:w-auto text-xs px-3 py-2 justify-center"
+                        className="w-full sm:w-auto text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 justify-center"
                         onClick={() => { setSelectedBudget(b); setIsAddFundsOpen(true); }}
                       >
                         + Add Funds
@@ -385,7 +462,7 @@ export default function BudgetsPage() {
           isOpen={isAddFundsOpen}
           onClose={() => setIsAddFundsOpen(false)}
           title={`Add Funds to ${selectedBudget?.name} 💰`}
-          description="Increase your planned budget cap."
+          description="Increase your planned budget cap by transferring from Available Total Balance."
         >
           {selectedBudget && (
             <form onSubmit={handleAddFundsToBudget} className="space-y-4">
@@ -430,12 +507,61 @@ export default function BudgetsPage() {
           )}
         </Modal>
 
-        {/* Spend / Withdraw from Budget Modal */}
+        {/* Withdraw Funds from Budget to Total Balance Modal */}
+        <Modal
+          isOpen={isReturnFundsOpen}
+          onClose={() => setIsReturnFundsOpen(false)}
+          title={`Withdraw Funds to Total Balance ↩️`}
+          description={`Return money from ${selectedBudget?.name} back into your main wallet.`}
+        >
+          {selectedBudget && (
+            <form onSubmit={handleReturnFundsToBalance} className="space-y-4">
+              <div className="bg-[#FAF6F0] p-4 rounded-2xl border border-[#EFE6DD] space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#7C6E6A]">Remaining Unspent in Budget:</span>
+                  <span className="font-black text-sm text-[#6E8B74]">
+                    ₱{Math.max(0, selectedBudget.total_budget - (selectedBudget.spent_amount || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-[#EFE6DD]">
+                  <span className="text-[#7C6E6A]">Current Total Cap:</span>
+                  <span className="font-bold text-[#3A2E2B]">
+                    ₱{selectedBudget.total_budget.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              <Input
+                label="Amount to Withdraw to Total Balance (₱)"
+                type="number"
+                step="0.01"
+                max={Math.max(0, selectedBudget.total_budget - (selectedBudget.spent_amount || 0))}
+                placeholder="e.g. 500.00"
+                value={withdrawFundsAmount}
+                onChange={(e) => setWithdrawFundsAmount(e.target.value)}
+                required
+              />
+
+              <div className="bg-[#EBF1EC] p-3 rounded-2xl border border-[#D1E2D4] text-xs text-[#6E8B74] space-y-1">
+                <p className="font-bold">✨ What happens when you withdraw:</p>
+                <p>• <strong>₱{withdrawFundsAmount || '0.00'}</strong> will be added directly to your <strong>Total Balance</strong>.</p>
+                <p>• Budget cap for {selectedBudget.name} will be reduced to ₱{Math.max(0, (selectedBudget.total_budget || 0) - (parseFloat(withdrawFundsAmount) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <Button type="button" variant="ghost" onClick={() => setIsReturnFundsOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="sage" isLoading={isSubmitting}>Confirm Withdraw 🐾</Button>
+              </div>
+            </form>
+          )}
+        </Modal>
+
+        {/* Spend / Record Expense from Budget Modal */}
         <Modal
           isOpen={isWithdrawOpen}
           onClose={() => setIsWithdrawOpen(false)}
-          title={`Spend / Withdraw from ${selectedBudget?.name} 💸`}
-          description="Record an expense or payment allocated from this budget."
+          title={`Record Expense for ${selectedBudget?.name} 💸`}
+          description="Log spending against this budget tracker."
         >
           {selectedBudget && (
             <form onSubmit={handleWithdrawFromBudget} className="space-y-4">
