@@ -10,12 +10,14 @@ import { CatIllustration } from '@/components/ui/CatIllustration';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSync } from '@/lib/hooks/useSync';
 import { db } from '@/lib/db';
-import { User, Phone, Mail, Globe, RefreshCw, Trash2, CheckCircle2, Shield } from 'lucide-react';
+import { User, Phone, Mail, Globe, RefreshCw, Trash2, CheckCircle2, Shield, LogOut } from 'lucide-react';
 import { CatMood } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const { profile, updateProfile, isOfflineMode } = useAuth();
+  const { profile, updateProfile, logoutUser, isOfflineMode } = useAuth();
   const { status, pendingCount, lastSyncedAt, triggerSync } = useSync();
+  const router = useRouter();
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
@@ -205,12 +207,41 @@ export default function SettingsPage() {
               Force Sync Now
             </Button>
             <Button
-              variant="danger"
+              variant="outline"
               size="sm"
+              className="text-red-500 hover:bg-red-50 hover:border-red-200"
               leftIcon={<Trash2 className="w-4 h-4" />}
               onClick={handleClearCache}
             >
               Clear Local Cache
+            </Button>
+          </div>
+        </Card>
+
+        {/* Account Session & Sign Out Card */}
+        <Card className="space-y-4 border-red-100 bg-white">
+          <CardHeader>
+            <div>
+              <CardTitle className="text-red-600">Account Session</CardTitle>
+              <CardDescription>Sign out of this device securely</CardDescription>
+            </div>
+          </CardHeader>
+
+          <p className="text-xs text-[#7C6E6A] leading-relaxed">
+            Logging out will end your active session on this device. Your offline records synced to the cloud will remain secure and ready when you log back in.
+          </p>
+
+          <div className="pt-2">
+            <Button
+              variant="danger"
+              size="md"
+              leftIcon={<LogOut className="w-4 h-4" />}
+              onClick={async () => {
+                await logoutUser();
+                router.push('/login');
+              }}
+            >
+              Sign Out of Budget Cat
             </Button>
           </div>
         </Card>

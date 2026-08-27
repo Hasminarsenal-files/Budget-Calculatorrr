@@ -216,13 +216,13 @@ export default function DashboardPage() {
     <AppShell>
       <div className="space-y-8">
         {/* Animated Cat Piggy Bank Mascot Header Banner */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EFE6DD] shadow-warm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="bg-white rounded-3xl p-5 sm:p-8 border border-[#EFE6DD] shadow-warm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
           <div className="space-y-2 z-10 w-full md:w-auto">
-            <Badge variant="sage" dot>Smart Personal Finance • Budget Cat</Badge>
+            <Badge variant="sage" dot className="text-[11px] sm:text-xs">Smart Personal Finance • Budget Cat</Badge>
             <h1 className="text-2xl sm:text-3xl font-black text-[#3A2E2B] tracking-tight">
               Dashboard Overview
             </h1>
-            <p className="text-xs sm:text-sm text-[#7C6E6A] max-w-lg">
+            <p className="text-xs sm:text-sm text-[#7C6E6A] max-w-lg text-justify sm:text-left leading-relaxed">
               Monitor your total balance, monthly spending caps, active event budgets, and upcoming bill due dates in real-time.
             </p>
           </div>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
             totalBudget={primaryBudget.total_budget}
             savingsGoalProgress={goalProgressPct}
             currencySymbol="₱"
-            size={140}
+            size={130}
           />
         </div>
 

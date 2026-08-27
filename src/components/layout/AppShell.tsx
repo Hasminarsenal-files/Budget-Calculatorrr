@@ -12,7 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { X, Plus, ArrowLeftRight } from 'lucide-react';
+import { X, Plus, ArrowLeftRight, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,7 +20,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   // Quick Add Form state
-  const { profile } = useAuth();
+  const { profile, logoutUser } = useAuth();
   const router = useRouter();
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
@@ -96,7 +96,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pt-2">
+            <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pt-2">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -111,6 +111,21 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   </Link>
                 );
               })}
+            </div>
+
+            <div className="pt-2 border-t border-[#EFE6DD]">
+              <button
+                type="button"
+                onClick={async () => {
+                  setMobileDrawerOpen(false);
+                  await logoutUser();
+                  router.push('/login');
+                }}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold border border-red-200 transition-colors"
+              >
+                <LogOut className="w-4 h-4 text-red-500" />
+                <span>Sign Out of Account</span>
+              </button>
             </div>
           </div>
         </div>

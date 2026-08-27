@@ -310,14 +310,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutUser = async () => {
     setLoading(true);
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
+    try {
+      if (isSupabaseConfigured()) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Error signing out with Supabase:', err);
+    } finally {
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      setLoading(false);
     }
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    setLoading(false);
   };
 
   const resetPassword = async (email: string) => {

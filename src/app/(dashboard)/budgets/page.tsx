@@ -282,9 +282,9 @@ export default function BudgetsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-[#3A2E2B]">Budgets & Event Trackers 🐾</h1>
-            <p className="text-xs sm:text-sm text-[#7C6E6A]">Ordinary monthly budgets and temporary event budgets (Cebu Trip, Vacation, Gala, Weddings).</p>
+            <p className="text-xs sm:text-sm text-[#7C6E6A] text-justify sm:text-left mt-1">Ordinary monthly budgets and temporary event budgets (Cebu Trip, Vacation, Gala, Weddings).</p>
           </div>
-          <Button variant="sage" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsModalOpen(true)}>
+          <Button variant="sage" className="w-full sm:w-auto justify-center" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsModalOpen(true)}>
             Create New Budget
           </Button>
         </div>
@@ -303,19 +303,19 @@ export default function BudgetsPage() {
               const pct = Math.min(100, Math.round((spent / b.total_budget) * 100));
 
               return (
-                <Card key={b.id} className="space-y-5 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all">
+                <Card key={b.id} className="space-y-5 flex flex-col justify-between hover:border-[#6E8B74]/50 transition-all p-5 sm:p-6">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-[#EBF1EC] text-[#6E8B74] rounded-2xl">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-3 bg-[#EBF1EC] text-[#6E8B74] rounded-2xl shrink-0">
                           <Wallet className="w-5 h-5" />
                         </div>
-                        <div>
-                          <h3 className="font-bold text-base text-[#3A2E2B]">{b.name}</h3>
-                          <p className="text-xs text-[#7C6E6A] truncate max-w-[160px]">{b.description || 'Custom Budget'}</p>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-base text-[#3A2E2B] truncate">{b.name}</h3>
+                          <p className="text-xs text-[#7C6E6A] truncate">{b.description || 'Custom Budget'}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <Badge variant={b.budget_type === 'monthly' ? 'sage' : 'peach'}>
                           {b.budget_type.toUpperCase()}
                         </Badge>
@@ -346,23 +346,25 @@ export default function BudgetsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[#EFE6DD] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                    <div>
+                  <div className="pt-4 border-t border-[#EFE6DD] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="flex sm:flex-col justify-between items-center sm:items-start">
                       <span className="text-xs text-[#7C6E6A] block">{b.start_date}</span>
                       <span className="font-bold text-xs text-[#3A2E2B]">₱{remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })} Left</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 sm:flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
+                        className="w-full sm:w-auto text-xs px-3 py-2 justify-center"
                         onClick={() => { setSelectedBudget(b); setIsWithdrawOpen(true); }}
                       >
-                        💸 Spend / Withdraw
+                        💸 Spend
                       </Button>
                       <Button
                         size="sm"
                         variant="sage"
+                        className="w-full sm:w-auto text-xs px-3 py-2 justify-center"
                         onClick={() => { setSelectedBudget(b); setIsAddFundsOpen(true); }}
                       >
                         + Add Funds

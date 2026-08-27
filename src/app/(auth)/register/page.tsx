@@ -60,7 +60,7 @@ export default function RegisterPage() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
-        <Card className="p-8 space-y-6">
+        <Card className="p-6 sm:p-8 space-y-6">
           <div className="text-center space-y-2">
             <Link href="/" className="inline-block">
               <CatIllustration mood="saving" size={72} className="mx-auto" />
