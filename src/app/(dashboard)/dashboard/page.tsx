@@ -53,29 +53,43 @@ export default function DashboardPage() {
       const now = new Date().toISOString();
       const userId = profile?.id || 'default-user';
 
-      // Auto-migrate any device that has the legacy seed data
-      const existingSavings = await db.savings_goals.toArray();
+      // 1. Force alignment of transactions to ensure ₱4,034 salary exists on all devices
       const existingTx = await db.transactions.toArray();
-      
-      const hasOldSeedSavings = existingSavings.some(s => s.id === 'sg-1' && s.current_amount === 1950);
-      const hasSalary4034 = existingTx.some(t => t.amount === 4034 || t.description.toLowerCase().includes('salary'));
+      const has4034 = existingTx.some(t => Math.round(t.amount) === 4034);
 
-      if (hasOldSeedSavings || !hasSalary4034) {
-        if (hasOldSeedSavings) {
-          await db.savings_goals.update('sg-1', { current_amount: 1000 });
-        }
-        if (!hasSalary4034) {
-          await db.transactions.put({
-            id: 'tx-3',
+      if (!has4034) {
+        await db.transactions.put({
+          id: 'tx-3',
+          user_id: userId,
+          description: 'Salary Compensation',
+          amount: 4034.00,
+          type: 'income',
+          payment_method: 'Bank',
+          transaction_date: now,
+          sync_status: 'synced',
+          created_at: now
+        });
+
+        const existingIncome = await db.income.toArray();
+        if (!existingIncome.some(i => Math.round(i.amount) === 4034)) {
+          await db.income.put({
+            id: 'inc-salary-4034',
             user_id: userId,
-            description: 'Salary Compensation',
+            source: 'Salary Compensation',
             amount: 4034.00,
-            type: 'income',
-            payment_method: 'Bank',
-            transaction_date: now,
+            date: now.slice(0, 10),
+            notes: 'Bank Deposit',
             sync_status: 'synced',
             created_at: now
           });
+        }
+      }
+
+      // 2. Force alignment of savings to ensure total savings equals ₱1,000.00
+      const existingSavings = await db.savings_goals.toArray();
+      for (const sg of existingSavings) {
+        if (sg.id === 'sg-1' && sg.current_amount !== 1000) {
+          await db.savings_goals.update(sg.id, { current_amount: 1000 });
         }
       }
 
