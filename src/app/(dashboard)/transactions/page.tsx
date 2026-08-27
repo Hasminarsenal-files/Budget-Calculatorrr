@@ -237,9 +237,66 @@ export default function TransactionsPage() {
           </div>
         </Card>
 
-        {/* Transactions Table & Mobile Cards */}
+        {/* Transactions Mobile Cards (< md) & Desktop Table (>= md) */}
         <Card className="p-0 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card List View */}
+          <div className="divide-y divide-[#EFE6DD] md:hidden">
+            {processedTransactions.length === 0 ? (
+              <div className="p-8 text-center text-xs text-[#7C6E6A]">No transactions found.</div>
+            ) : (
+              processedTransactions.map((tx) => (
+                <div key={tx.id} className="p-4 space-y-2 hover:bg-[#FAF6F0]/50 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <p className="font-bold text-sm text-[#3A2E2B] truncate">{tx.description}</p>
+                      <p className="text-[11px] text-[#7C6E6A]">
+                        {new Date(tx.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+                        {new Date(tx.transaction_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {tx.location ? ` • ${tx.location}` : ''}
+                      </p>
+                    </div>
+                    {/* Prominent Amount Display on Mobile */}
+                    <div className="text-right shrink-0">
+                      <span className={`text-base font-black ${tx.type === 'expense' ? 'text-[#E2856E]' : 'text-[#6E8B74]'}`}>
+                        {tx.type === 'expense' ? '-' : '+'}₱{tx.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant={tx.type === 'expense' ? 'peach' : 'sage'} size="sm">
+                        {tx.type.toUpperCase()}
+                      </Badge>
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-[#FAF6F0] text-[#7C6E6A] rounded-full border border-[#EFE6DD]">
+                        {tx.payment_method}
+                      </span>
+                      {isOnline || tx.sync_status === 'synced' ? (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#6E8B74] font-semibold bg-[#EBF1EC] px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Synced
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-[#E2856E] font-semibold bg-[#FDF1EE] px-2 py-0.5 rounded-full">
+                          <WifiOff className="w-2.5 h-2.5" /> Offline
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteTx(tx.id)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete record"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-[#FAF6F0] border-b border-[#EFE6DD] text-xs uppercase font-bold text-[#7C6E6A]">
                 <tr>
