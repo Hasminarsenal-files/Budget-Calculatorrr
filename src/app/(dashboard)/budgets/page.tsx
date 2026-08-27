@@ -21,7 +21,7 @@ interface CustomCategoryItem {
 }
 
 export default function BudgetsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
   const savings = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
@@ -88,17 +88,18 @@ export default function BudgetsPage() {
 
   const handleCreateBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !totalBudget || !profile) return;
+    if (!name.trim() || !totalBudget) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'b-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
       const now = new Date().toISOString();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newBudget: Budget = {
         id: newId,
-        user_id: profile.id,
-        name,
+        user_id: userId,
+        name: name.trim(),
         description: description || `Categories: ${categories.map(c => c.name).join(', ')}`,
         budget_type: budgetType,
         total_budget: parsedTotalBudget,
@@ -141,7 +142,7 @@ export default function BudgetsPage() {
   // Add Funds to Budget (Deducts from Total Balance and allocates to Budget)
   const handleAddFundsToBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBudget || !addFundsAmount || !profile) return;
+    if (!selectedBudget || !addFundsAmount) return;
     setIsSubmitting(true);
 
     try {
@@ -149,6 +150,7 @@ export default function BudgetsPage() {
       const updatedTotal = selectedBudget.total_budget + addVal;
       const now = new Date().toISOString();
       const txId = 'tx-budget-alloc-' + Date.now();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       // 1. Update budget total cap in database
       await db.budgets.update(selectedBudget.id, { total_budget: updatedTotal });
@@ -157,7 +159,7 @@ export default function BudgetsPage() {
       // 2. Log allocation transaction to deduct from Total Balance
       const newTx: Transaction = {
         id: txId,
-        user_id: profile.id,
+        user_id: userId,
         budget_id: selectedBudget.id,
         description: `Budget Allocation: ${selectedBudget.name}`,
         amount: addVal,
@@ -183,7 +185,7 @@ export default function BudgetsPage() {
   // Withdraw / Spend from Budget
   const handleWithdrawFromBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBudget || !spendAmount || !profile) return;
+    if (!selectedBudget || !spendAmount) return;
     setIsSubmitting(true);
 
     try {
@@ -191,6 +193,7 @@ export default function BudgetsPage() {
       const updatedSpent = (selectedBudget.spent_amount || 0) + amountVal;
       const now = new Date().toISOString();
       const txId = 'tx-budget-' + Date.now();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       // 1. Update budget spent amount
       await db.budgets.update(selectedBudget.id, { spent_amount: updatedSpent });
@@ -200,7 +203,7 @@ export default function BudgetsPage() {
       const desc = spendDesc.trim() || `Expense for ${selectedBudget.name}`;
       const newTx: Transaction = {
         id: txId,
-        user_id: profile.id,
+        user_id: userId,
         budget_id: selectedBudget.id,
         description: desc,
         amount: amountVal,

@@ -16,7 +16,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { PiggyBank, Plus, TrendingUp, Sparkles, Laptop, Trash2, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 
 export default function SavingsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const goals = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
 
@@ -45,18 +45,19 @@ export default function SavingsPage() {
   // Create Goal
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !targetAmount || !profile) return;
+    if (!name.trim() || !targetAmount) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'sg-' + Date.now();
       const now = new Date().toISOString();
       const initialAmt = parseFloat(currentAmount) || 0;
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newGoal: SavingsGoal = {
         id: newId,
-        user_id: profile.id,
-        name,
+        user_id: userId,
+        name: name.trim(),
         target_amount: parseFloat(targetAmount),
         current_amount: initialAmt,
         target_date: targetDate,
@@ -83,7 +84,7 @@ export default function SavingsPage() {
   // Deposit Money into Goal
   const handleAddDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGoal || !depositAmount || !profile) return;
+    if (!selectedGoal || !depositAmount) return;
     setIsSubmitting(true);
 
     try {
@@ -91,6 +92,7 @@ export default function SavingsPage() {
       const updatedVal = selectedGoal.current_amount + addVal;
       const now = new Date().toISOString();
       const txId = 'tx-save-' + Date.now();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       // 1. Update savings goal amount
       await db.savings_goals.update(selectedGoal.id, { current_amount: updatedVal });
@@ -99,7 +101,7 @@ export default function SavingsPage() {
       // 2. Log transaction
       const newTx = {
         id: txId,
-        user_id: profile.id,
+        user_id: userId,
         description: `Savings Deposit: ${selectedGoal.name}`,
         amount: addVal,
         type: 'transfer' as const,
@@ -124,7 +126,7 @@ export default function SavingsPage() {
   // Withdraw / Spend Money from Goal
   const handleWithdrawSpend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGoal || !withdrawAmount || !profile) return;
+    if (!selectedGoal || !withdrawAmount) return;
     setIsSubmitting(true);
 
     try {
@@ -132,6 +134,7 @@ export default function SavingsPage() {
       const remainingVal = Math.max(0, selectedGoal.current_amount - spendVal);
       const now = new Date().toISOString();
       const txId = 'tx-spend-save-' + Date.now();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       // 1. Deduct amount from savings goal
       await db.savings_goals.update(selectedGoal.id, { current_amount: remainingVal });
@@ -141,7 +144,7 @@ export default function SavingsPage() {
       const purpose = withdrawDesc.trim() || `Withdrawn from ${selectedGoal.name}`;
       const newTx = {
         id: txId,
-        user_id: profile.id,
+        user_id: userId,
         description: `Withdrawn Savings: ${purpose}`,
         amount: spendVal,
         type: 'transfer' as const,

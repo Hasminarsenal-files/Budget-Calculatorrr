@@ -38,18 +38,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !desc || !profile) return;
+    if (!amount || !desc.trim()) return;
     setIsSubmitting(true);
 
     try {
       const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        setIsSubmitting(false);
+        return;
+      }
+
       const newId = 'tx-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
       const now = new Date().toISOString();
+      const userId = profile?.id || user?.id || 'user-offline';
 
       const txRecord = {
         id: newId,
-        user_id: profile.id,
-        description: desc,
+        user_id: userId,
+        description: desc.trim(),
         amount: numAmount,
         type,
         payment_method: paymentMethod,
@@ -61,6 +67,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       await db.transactions.put(txRecord);
       await syncManager.queueChange('transactions', 'INSERT', newId, txRecord);
+
+      // If it's income, also record in the income table so the Income view reflects it
+      if (type === 'income') {
+        const incId = 'inc-' + Date.now();
+        const incRecord = {
+          id: incId,
+          user_id: userId,
+          source: desc.trim(),
+          amount: numAmount,
+          date: now.slice(0, 10),
+          notes: `Quick added (${paymentMethod})`,
+          sync_status: 'pending' as const,
+          created_at: now
+        };
+        await db.income.put(incRecord);
+        await syncManager.queueChange('income', 'INSERT', incId, incRecord);
+      }
 
       setDesc('');
       setAmount('');

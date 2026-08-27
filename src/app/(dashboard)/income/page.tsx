@@ -15,7 +15,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { TrendingUp, Plus, DollarSign, Calendar, Trash2 } from 'lucide-react';
 
 export default function IncomePage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const incomeList = useLiveQuery(() => db.income.toArray(), []) || [];
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -32,17 +32,18 @@ export default function IncomePage() {
 
   const handleAddIncome = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!source || !amount || !profile) return;
+    if (!source.trim() || !amount) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'inc-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
       const now = new Date().toISOString();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newIncome: Income = {
         id: newId,
-        user_id: profile.id,
-        source,
+        user_id: userId,
+        source: source.trim(),
         amount: parseFloat(amount),
         date,
         notes,
@@ -57,7 +58,7 @@ export default function IncomePage() {
       const txId = 'tx-' + Date.now();
       const newTx = {
         id: txId,
-        user_id: profile.id,
+        user_id: userId,
         description: `Income: ${source}`,
         amount: parseFloat(amount),
         type: 'income' as const,

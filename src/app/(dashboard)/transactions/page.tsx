@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export default function TransactionsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const isOnline = useOnlineStatus();
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
@@ -38,12 +38,12 @@ export default function TransactionsPage() {
   }, []);
 
   // Filter & Search Controls
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterPayment, setFilterPayment] = useState<string>('all');
-  const [filterDateRange, setFilterDateRange] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
+  const [filterPayment, setFilterPayment] = useState<string>('all');
+  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   // Form State
   const [desc, setDesc] = useState('');
@@ -98,10 +98,8 @@ export default function TransactionsPage() {
 
     // 5. Sorting
     result.sort((a, b) => {
-      const timeA = new Date(a.transaction_date).getTime();
-      const timeB = new Date(b.transaction_date).getTime();
-      if (sortBy === 'newest') return timeB - timeA;
-      if (sortBy === 'oldest') return timeA - timeB;
+      if (sortBy === 'newest') return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+      if (sortBy === 'oldest') return new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime();
       if (sortBy === 'highest') return b.amount - a.amount;
       if (sortBy === 'lowest') return a.amount - b.amount;
       return 0;
@@ -112,18 +110,19 @@ export default function TransactionsPage() {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!desc || !amount || !profile) return;
+    if (!desc.trim() || !amount) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'tx-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
       const now = new Date().toISOString();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newTx: Transaction = {
         id: newId,
-        user_id: profile.id,
+        user_id: userId,
         budget_id: budgetId || undefined,
-        description: desc,
+        description: desc.trim(),
         amount: parseFloat(amount),
         type,
         payment_method: paymentMethod,
@@ -197,7 +196,7 @@ export default function TransactionsPage() {
             <div>
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => setFilterType(e.target.value as TransactionType | 'all')}
                 className="w-full bg-[#FAF6F0] border border-[#EFE6DD] text-[#3A2E2B] text-xs font-bold rounded-2xl px-3 py-2.5"
               >
                 <option value="all">All Types</option>

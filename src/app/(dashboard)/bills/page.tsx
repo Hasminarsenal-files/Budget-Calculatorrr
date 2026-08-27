@@ -16,7 +16,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Receipt, Plus, CheckCircle, Trash2 } from 'lucide-react';
 
 export default function BillsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const bills = useLiveQuery(() => db.bills.toArray(), []) || [];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
@@ -31,17 +31,18 @@ export default function BillsPage() {
 
   const handleAddBill = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !amount || !dueDate || !profile) return;
+    if (!name.trim() || !amount || !dueDate) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'bill-' + Date.now();
       const now = new Date().toISOString();
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newBill: Bill = {
         id: newId,
-        user_id: profile.id,
-        name,
+        user_id: userId,
+        name: name.trim(),
         amount: parseFloat(amount),
         due_date: dueDate,
         recurring,

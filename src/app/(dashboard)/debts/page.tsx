@@ -15,7 +15,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { CreditCard, Plus, ArrowDownRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export default function DebtsPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const debts = useLiveQuery(() => db.debts.toArray(), []) || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,18 +35,19 @@ export default function DebtsPage() {
 
   const handleCreateDebt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !originalAmount || !profile) return;
+    if (!name.trim() || !originalAmount) return;
     setIsSubmitting(true);
 
     try {
       const newId = 'debt-' + Date.now();
       const now = new Date().toISOString();
       const orig = parseFloat(originalAmount);
+      const userId = profile?.id || user?.id || 'offline-user';
 
       const newDebt: Debt = {
         id: newId,
-        user_id: profile.id,
-        name,
+        user_id: userId,
+        name: name.trim(),
         original_amount: orig,
         remaining_amount: remainingAmount ? parseFloat(remainingAmount) : orig,
         minimum_payment: minimumPayment ? parseFloat(minimumPayment) : 0,
