@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
-import { Transaction, TransactionType } from '@/lib/types';
+import { Transaction, TransactionType, DEFAULT_MONTHLY_CATEGORIES } from '@/lib/types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useOnlineStatus } from '@/lib/hooks/useOnlineStatus';
 import { 
@@ -31,6 +31,12 @@ export default function TransactionsPage() {
   const isOnline = useOnlineStatus();
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
+  const budgetCategories = useLiveQuery(() => db.budget_categories.toArray(), []) || [];
+
+  const availableCategoryNames = useMemo(() => {
+    const customNames = budgetCategories.map((c) => c.name).filter(Boolean);
+    return Array.from(new Set([...DEFAULT_MONTHLY_CATEGORIES, ...customNames]));
+  }, [budgetCategories]);
 
   // Trigger sync on page load to flush any pending queue
   useEffect(() => {
@@ -49,6 +55,8 @@ export default function TransactionsPage() {
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('expense');
+  const [category, setCategory] = useState<string>('Food & Groceries');
+  const [txDate, setTxDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [paymentMethod, setPaymentMethod] = useState('GCash');
   const [budgetId, setBudgetId] = useState('');
   const [location, setLocation] = useState('');
@@ -118,17 +126,22 @@ export default function TransactionsPage() {
       const now = new Date().toISOString();
       const userId = profile?.id || user?.id || 'offline-user';
 
+      const selectedIsoDate = txDate
+        ? new Date(`${txDate}T12:00:00`).toISOString()
+        : now;
+
       const newTx: Transaction = {
         id: newId,
         user_id: userId,
         budget_id: budgetId || undefined,
+        category: type === 'expense' ? category : undefined,
         description: desc.trim(),
         amount: parseFloat(amount),
         type,
         payment_method: paymentMethod,
         location,
-        notes,
-        transaction_date: now,
+        notes: notes.trim() || (type === 'expense' ? category : undefined),
+        transaction_date: selectedIsoDate,
         sync_status: 'pending',
         created_at: now
       };
@@ -420,6 +433,33 @@ export default function TransactionsPage() {
                   <option value="From Savings">From Savings</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {type === 'expense' && (
+                <div>
+                  <label className="text-xs font-semibold text-[#3A2E2B] mb-1.5 block">Expense Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-white border border-[#EFE6DD] text-[#3A2E2B] rounded-2xl px-4 py-2.5 text-sm"
+                  >
+                    {availableCategoryNames.map((catName) => (
+                      <option key={catName} value={catName}>{catName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className={type === 'expense' ? '' : 'sm:col-span-2'}>
+                <Input
+                  label="Transaction Date"
+                  type="date"
+                  value={txDate}
+                  onChange={(e) => setTxDate(e.target.value)}
+                  required
+                />
               </div>
             </div>
 

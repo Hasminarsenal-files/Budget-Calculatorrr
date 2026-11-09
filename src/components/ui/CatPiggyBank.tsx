@@ -14,20 +14,35 @@ interface CatPiggyBankProps {
   currencySymbol?: string;
   className?: string;
   size?: number;
+  customMessage?: string;
+  customState?: PiggyState;
+  extraAlerts?: string[];
 }
 
 export const CatPiggyBank: React.FC<CatPiggyBankProps> = ({
   spentAmount = 0,
   totalBudget = 4000,
-  savingsGoalProgress = 65,
+  savingsGoalProgress = 0,
   recentActivityDays = 0,
   currencySymbol = '₱',
   className = '',
-  size = 140
+  size = 140,
+  customMessage,
+  customState,
+  extraAlerts = []
 }) => {
   // Determine state & message dynamically from real numbers
   const { state, message } = useMemo(() => {
+    if (customMessage && customState) {
+      return { state: customState, message: customMessage };
+    }
+
     const pct = totalBudget > 0 ? (spentAmount / totalBudget) * 100 : 0;
+
+    if (customMessage) {
+      const autoState: PiggyState = pct > 100 ? 'sad' : pct >= 80 ? 'worried' : 'happy';
+      return { state: customState || autoState, message: customMessage };
+    }
 
     if (savingsGoalProgress >= 100) {
       return {
@@ -36,14 +51,14 @@ export const CatPiggyBank: React.FC<CatPiggyBankProps> = ({
       };
     }
 
-    if (pct > 100) {
+    if (totalBudget > 0 && pct > 100) {
       return {
         state: 'sad' as PiggyState,
         message: `Oh no! Spending exceeds your budget cap by ${currencySymbol}${(spentAmount - totalBudget).toLocaleString()}.`
       };
     }
 
-    if (pct >= 85) {
+    if (totalBudget > 0 && pct >= 80) {
       return {
         state: 'worried' as PiggyState,
         message: `Careful! Your spending is at ${pct.toFixed(0)}% of your budget limit.`
@@ -66,9 +81,11 @@ export const CatPiggyBank: React.FC<CatPiggyBankProps> = ({
 
     return {
       state: 'happy' as PiggyState,
-      message: `Meow! You're doing great keeping within budget this month! 🐾`
+      message: totalBudget > 0
+        ? `Great job! You're staying within your monthly budget! 🐾`
+        : `Meow! Set up your monthly budget plan to track your spending goals! 🐾`
     };
-  }, [spentAmount, totalBudget, savingsGoalProgress, recentActivityDays, currencySymbol]);
+  }, [spentAmount, totalBudget, savingsGoalProgress, recentActivityDays, currencySymbol, customMessage, customState]);
 
   // SVG color palette per state
   const earColor = state === 'worried' || state === 'sad' ? '#E2856E' : state === 'celebration' || state === 'excited' ? '#D99B26' : '#6E8B74';
@@ -81,13 +98,23 @@ export const CatPiggyBank: React.FC<CatPiggyBankProps> = ({
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         key={message}
-        className="relative bg-white border border-[#EFE6DD] shadow-warm rounded-2xl p-3 sm:p-4 text-xs font-semibold text-[#3A2E2B] max-w-xs text-center sm:text-left z-10"
+        className="relative bg-white border border-[#EFE6DD] shadow-warm rounded-2xl p-3.5 sm:p-4 text-xs font-semibold text-[#3A2E2B] max-w-md text-center sm:text-left z-10 space-y-2"
       >
-        <div className="flex items-center gap-1.5 mb-1 text-[11px] font-bold text-[#6E8B74] uppercase tracking-wider">
+        <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[11px] font-bold text-[#6E8B74] uppercase tracking-wider">
           <Sparkles className="w-3.5 h-3.5 text-[#D99B26]" />
           <span>Budget Cat Assistant</span>
         </div>
         <p className="leading-relaxed">{message}</p>
+        {extraAlerts.length > 0 && (
+          <div className="pt-1.5 border-t border-[#EFE6DD] space-y-1">
+            {extraAlerts.slice(0, 2).map((alertText, idx) => (
+              <p key={idx} className="text-[11px] text-[#7C6E6A] flex items-center justify-center sm:justify-start gap-1.5">
+                <AlertCircle className="w-3 h-3 text-[#D99B26] shrink-0" />
+                <span>{alertText}</span>
+              </p>
+            ))}
+          </div>
+        )}
         
         {/* Pointer Arrow */}
         <div className="hidden sm:block absolute -right-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-l-8 border-l-white" />

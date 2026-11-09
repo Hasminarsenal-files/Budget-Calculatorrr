@@ -40,12 +40,28 @@ export interface UserProfile extends BaseSyncEntity {
   timezone: string;
 }
 
+export const DEFAULT_MONTHLY_CATEGORIES = [
+  'Food & Groceries',
+  'Transportation',
+  'House & Utilities',
+  'Rent',
+  'Shopping',
+  'Healthcare',
+  'Education',
+  'Entertainment',
+  'Personal Care',
+  'Savings',
+  'Debt Payments',
+  'Other Expenses'
+] as const;
+
 export interface Budget extends BaseSyncEntity {
   id: string;
   user_id: string;
   name: string;
   description?: string;
   budget_type: BudgetType;
+  month_key?: string; // e.g. '2026-11', '2026-12'
   start_date: string;
   end_date?: string;
   total_budget: number;
@@ -68,6 +84,7 @@ export interface Transaction extends BaseSyncEntity {
   user_id: string;
   budget_id?: string;
   category_id?: string;
+  category?: string;
   type: TransactionType;
   amount: number;
   description: string;

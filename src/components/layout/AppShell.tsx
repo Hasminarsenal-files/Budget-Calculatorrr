@@ -13,6 +13,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { syncManager } from '@/lib/sync/syncManager';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { DEFAULT_MONTHLY_CATEGORIES } from '@/lib/types';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { X, Plus, ArrowLeftRight, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
@@ -75,8 +77,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'expense' | 'income'>('expense');
+  const [category, setCategory] = useState<string>('Food & Groceries');
   const [paymentMethod, setPaymentMethod] = useState('GCash');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const budgetCategories = useLiveQuery(() => db.budget_categories.toArray(), []) || [];
+  const availableCategoryNames = Array.from(
+    new Set([...DEFAULT_MONTHLY_CATEGORIES, ...budgetCategories.map((c) => c.name).filter(Boolean)])
+  );
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,12 +105,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const txRecord = {
         id: newId,
         user_id: userId,
+        category: type === 'expense' ? category : undefined,
         description: desc.trim(),
         amount: numAmount,
         type,
         payment_method: paymentMethod,
         transaction_date: now,
-        notes: `Quick added via Budget Cat app shell`,
+        notes: type === 'expense' ? category : `Quick added via Budget Cat app shell`,
         sync_status: 'pending' as const,
         created_at: now
       };
@@ -320,6 +329,21 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               </select>
             </div>
           </div>
+
+          {type === 'expense' && (
+            <div>
+              <label className="text-xs font-semibold text-[#3A2E2B] mb-1.5 block">Expense Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-white border border-[#EFE6DD] text-[#3A2E2B] rounded-2xl px-3 py-2 text-xs"
+              >
+                {availableCategoryNames.map((catName) => (
+                  <option key={catName} value={catName}>{catName}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setQuickAddOpen(false)}>
