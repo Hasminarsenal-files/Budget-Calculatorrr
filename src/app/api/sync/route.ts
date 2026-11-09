@@ -6,7 +6,9 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const REPO_OWNER = 'Hasminarsenal-files';
 const REPO_NAME = 'Budget-Calculatorrr';
 const FILE_PATH = 'data/cloud-store.json';
-const LOCAL_FILE_PATH = path.join(process.cwd(), 'data', 'cloud-store.json');
+const LOCAL_FILE_PATH = fs.existsSync(path.join(process.cwd(), 'Budget-Calculatorrr-main', 'data', 'cloud-store.json'))
+  ? path.join(process.cwd(), 'Budget-Calculatorrr-main', 'data', 'cloud-store.json')
+  : path.join(process.cwd(), 'data', 'cloud-store.json');
 
 interface UserDataStore {
   profiles?: any[];
@@ -185,7 +187,21 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(tables.bills)) currentData.bills = tables.bills;
       if (Array.isArray(tables.savings_goals)) currentData.savings_goals = tables.savings_goals;
       if (Array.isArray(tables.debts)) currentData.debts = tables.debts;
-      if (Array.isArray(tables.profiles)) currentData.profiles = tables.profiles;
+      if (Array.isArray(tables.profiles) && tables.profiles.length > 0) {
+        const existingProfiles = Array.isArray(currentData.profiles) ? currentData.profiles : [];
+        const map = new Map<string, any>();
+        existingProfiles.forEach((p) => {
+          if (p && p.id && !/^\+?\d[\d\s\-()]{5,}$/.test(p.full_name || '')) {
+            map.set(p.id, p);
+          }
+        });
+        tables.profiles.forEach((p: any) => {
+          if (p && p.id && !/^\+?\d[\d\s\-()]{5,}$/.test(p.full_name || '')) {
+            map.set(p.id, p);
+          }
+        });
+        currentData.profiles = Array.from(map.values());
+      }
     }
 
     currentData.last_updated = new Date().toISOString();

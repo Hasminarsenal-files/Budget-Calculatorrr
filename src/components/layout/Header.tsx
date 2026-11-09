@@ -62,7 +62,7 @@ export const Header: React.FC = () => {
             <div className="w-7 h-7 rounded-full bg-[#EBF1EC] flex items-center justify-center overflow-hidden shrink-0">
               <CatIllustration mood="happy" size={26} />
             </div>
-            <span className="text-xs font-bold text-[#3A2E2B] hidden md:inline truncate max-w-[100px]">
+            <span className="text-xs font-bold text-[#3A2E2B] hidden md:inline truncate max-w-[180px]">
               {profile?.full_name || 'Account'}
             </span>
             <ChevronDown className={`w-3.5 h-3.5 text-[#7C6E6A] transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
@@ -76,12 +76,17 @@ export const Header: React.FC = () => {
                 onClick={() => setDropdownOpen(false)}
               />
               {/* Dropdown Menu */}
-              <div 
-                className="absolute right-0 mt-2 w-52 bg-white border border-[#EFE6DD] rounded-2xl shadow-warm-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+              <div
+                className="absolute right-0 mt-2 w-56 bg-white border border-[#EFE6DD] rounded-2xl shadow-warm-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
               >
                 <div className="px-4 py-2 border-b border-[#EFE6DD]">
                   <p className="text-xs font-bold text-[#3A2E2B] truncate">{profile?.full_name || 'Budget Cat User'}</p>
-                  <p className="text-[11px] text-[#7C6E6A] truncate">{profile?.email || 'Logged in'}</p>
+                  {profile?.email && !profile.email.endsWith('@budgetcat.local') && (
+                    <p className="text-[11px] text-[#7C6E6A] truncate">{profile.email}</p>
+                  )}
+                  {profile?.phone && (
+                    <p className="text-[11px] text-[#7C6E6A] truncate">{profile.phone}</p>
+                  )}
                 </div>
                 <Link
                   href="/settings"

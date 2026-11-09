@@ -12,7 +12,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isOfflineMode: boolean;
-  registerUser: (data: { email: string; password: string; fullName: string; phone?: string }) => Promise<{ error?: string }>;
+  registerUser: (data: { email: string; password: string; fullName: string; phone: string }) => Promise<{ error?: string }>;
   loginUser: (identifier: string, password: string) => Promise<{ error?: string }>;
   logoutUser: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string; message?: string }>;
@@ -22,6 +22,60 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_USER_KEY = 'budget_cat_cached_user';
+const REGISTERED_USERS_KEY = 'budget_cat_registered_users';
+
+function normalizePhone(phone?: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+63') && digits.length >= 12) {
+    return '0' + digits.slice(3);
+  }
+  if (digits.startsWith('63') && digits.length === 12) {
+    return '0' + digits.slice(2);
+  }
+  return digits.replace(/\D/g, '');
+}
+
+function isLooksLikePhoneOrEmail(name?: string, email?: string, phone?: string): boolean {
+  if (!name || !name.trim()) return true;
+  const trimmed = name.trim();
+  if (trimmed.includes('@')) return true;
+  if (/^\+?\d[\d\s\-()]{5,}$/.test(trimmed)) return true;
+  if (phone && normalizePhone(trimmed) === normalizePhone(phone) && normalizePhone(phone).length > 0) return true;
+  if (email && trimmed.toLowerCase() === email.split('@')[0].toLowerCase() && /\d{3,}/.test(trimmed)) return true;
+  return false;
+}
+
+function getRegisteredProfilesFromStorage(): UserProfile[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(REGISTERED_USERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRegisteredProfileToStorage(prof: UserProfile) {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getRegisteredProfilesFromStorage();
+    const normPhone = normalizePhone(prof.phone);
+    const normEmail = (prof.email || '').trim().toLowerCase();
+    const filtered = list.filter((p) => {
+      if (p.id === prof.id) return false;
+      if (normEmail && (p.email || '').trim().toLowerCase() === normEmail) return false;
+      if (normPhone && normalizePhone(p.phone) === normPhone) return false;
+      return true;
+    });
+    filtered.push(prof);
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('[AuthContext] Failed to save registered profile:', e);
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -52,15 +106,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!isSupabaseConfigured()) {
-        // Fallback offline mock session for demo/offline usage
-        loadCachedUser();
+        await loadCachedUser();
         if (isMounted) setLoading(false);
         return;
       }
 
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
+
         if (initialSession?.user) {
           if (isMounted) {
             setSession(initialSession);
@@ -68,16 +121,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           await fetchAndCacheProfile(initialSession.user);
         } else {
-          loadCachedUser();
+          await loadCachedUser();
         }
       } catch (err) {
         console.warn('[AuthContext] Error initializing Supabase auth, checking local cache:', err);
-        loadCachedUser();
+        await loadCachedUser();
       } finally {
         if (isMounted) setLoading(false);
       }
 
-      // Listen to auth changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
         if (!isMounted) return;
 
@@ -105,9 +157,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const applyActiveProfile = (userProf: UserProfile) => {
+    setProfile(userProf);
+    setUser({
+      id: userProf.id,
+      email: userProf.email,
+      user_metadata: { full_name: userProf.full_name, phone: userProf.phone },
+      app_metadata: {},
+      aud: 'authenticated',
+      created_at: userProf.created_at
+    } as User);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userProf));
+    saveRegisteredProfileToStorage(userProf);
+  };
+
   const fetchAndCacheProfile = async (authUser: User) => {
     try {
-      // Try to fetch profile from Supabase
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -119,10 +184,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!error && data) {
         userProf = {
           ...data,
+          full_name: data.full_name || authUser.user_metadata?.full_name || 'Cat Budgeter',
+          phone: data.phone || authUser.user_metadata?.phone || '',
           sync_status: 'synced'
         };
       } else {
-        // Fallback default profile if trigger hasn't completed yet
         userProf = {
           id: authUser.id,
           full_name: authUser.user_metadata?.full_name || 'Cat Budgeter',
@@ -136,32 +202,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      setProfile(userProf);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userProf));
+      applyActiveProfile(userProf);
       await db.profiles.put(userProf);
     } catch (e) {
       console.warn('[AuthContext] Could not fetch remote profile, checking Dexie local table:', e);
       const localProf = await db.profiles.get(authUser.id);
       if (localProf) {
-        setProfile(localProf);
+        applyActiveProfile(localProf);
       }
     }
   };
 
-  const loadCachedUser = () => {
+  const findMatchingProfile = async (identifier: string): Promise<UserProfile | null> => {
+    const cleanId = identifier.trim();
+    const isEmail = cleanId.includes('@');
+    const normEmail = cleanId.toLowerCase();
+    const normPhone = normalizePhone(cleanId);
+
+    // Gather all known profiles from Dexie, localStorage registry, and cloud sync store
+    const dexieProfiles = await db.profiles.toArray();
+    const storageProfiles = getRegisteredProfilesFromStorage();
+    let remoteProfiles: UserProfile[] = [];
+    try {
+      const res = await fetch('/api/sync');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json?.data?.profiles)) {
+          remoteProfiles = json.data.profiles;
+        }
+      }
+    } catch {
+      // Ignore offline fetch error
+    }
+
+    const allCandidates = [...dexieProfiles, ...storageProfiles, ...remoteProfiles];
+
+    // 1. Direct match by email or phone with a valid Full Name
+    const exactWithRealName = allCandidates.find((p) => {
+      if (!p) return false;
+      const matchesEmail = isEmail && (p.email || '').trim().toLowerCase() === normEmail;
+      const matchesPhone = !isEmail && normPhone.length > 0 && normalizePhone(p.phone) === normPhone;
+      return (matchesEmail || matchesPhone) && !isLooksLikePhoneOrEmail(p.full_name, p.email, p.phone);
+    });
+    if (exactWithRealName) return exactWithRealName;
+
+    // 2. If there is a registered profile with a real full_name in the database/storage that is missing phone or was created before phone login, link it
+    const realNamedProfiles = allCandidates.filter((p) => p && !isLooksLikePhoneOrEmail(p.full_name, p.email, p.phone));
+    if (realNamedProfiles.length > 0) {
+      const best = realNamedProfiles[realNamedProfiles.length - 1];
+      if (!isEmail && normPhone.length > 0 && (!best.phone || normalizePhone(best.phone) === normPhone)) {
+        return {
+          ...best,
+          phone: cleanId
+        };
+      }
+    }
+
+    // 3. Fallback direct match by email or phone
+    const anyMatch = allCandidates.find((p) => {
+      if (!p) return false;
+      const matchesEmail = isEmail && (p.email || '').trim().toLowerCase() === normEmail;
+      const matchesPhone = !isEmail && normPhone.length > 0 && normalizePhone(p.phone) === normPhone;
+      return matchesEmail || matchesPhone;
+    });
+    if (anyMatch && !isLooksLikePhoneOrEmail(anyMatch.full_name, anyMatch.email, anyMatch.phone)) {
+      return anyMatch;
+    }
+
+    return null;
+  };
+
+  const loadCachedUser = async () => {
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
       if (cached) {
         const parsed: UserProfile = JSON.parse(cached);
-        setProfile(parsed);
-        setUser({
-          id: parsed.id,
-          email: parsed.email,
-          user_metadata: { full_name: parsed.full_name, phone: parsed.phone },
-          app_metadata: {},
-          aud: 'authenticated',
-          created_at: parsed.created_at
-        } as User);
+
+        // If the cached user has a phone number or email as their full_name, try to repair it from registered profiles
+        if (isLooksLikePhoneOrEmail(parsed.full_name, parsed.email, parsed.phone)) {
+          const repaired = await findMatchingProfile(parsed.phone || parsed.email || '');
+          if (repaired && !isLooksLikePhoneOrEmail(repaired.full_name, repaired.email, repaired.phone)) {
+            applyActiveProfile(repaired);
+            await db.profiles.put(repaired);
+            setIsOfflineMode(true);
+            return;
+          } else {
+            // Clear broken mock session where phone number was used as name so user can register/login properly
+            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            await db.profiles.delete(parsed.id);
+            return;
+          }
+        }
+
+        applyActiveProfile(parsed);
         setIsOfflineMode(true);
       }
     } catch (e) {
@@ -169,47 +302,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const registerUser = async ({ email, password, fullName, phone }: { email: string; password: string; fullName: string; phone?: string }) => {
+  const registerUser = async ({ email, password, fullName, phone }: { email: string; password: string; fullName: string; phone: string }) => {
     setLoading(true);
 
+    const cleanName = fullName.trim();
+    const cleanEmail = email.trim();
+    const cleanPhone = phone.trim();
+
+    if (!cleanName || !cleanEmail || !cleanPhone) {
+      setLoading(false);
+      return { error: 'Full Name, Email Address, and Phone Number are required.' };
+    }
+
     if (!isSupabaseConfigured()) {
-      // Offline fallback signup
-      const mockId = 'offline-' + Date.now();
+      const mockId = 'user-' + Date.now();
       const mockProfile: UserProfile = {
         id: mockId,
-        full_name: fullName,
-        email,
-        phone: phone || '',
+        full_name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
         avatar_url: 'cat-happy',
-        currency: 'USD',
-        timezone: 'UTC',
+        currency: 'PHP',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         sync_status: 'pending',
         created_at: new Date().toISOString()
       };
 
-      setProfile(mockProfile);
-      setUser({
-        id: mockId,
-        email,
-        user_metadata: { full_name: fullName, phone },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: mockProfile.created_at
-      } as User);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(mockProfile));
+      // Remove any old placeholder profiles that had the phone number as full_name
+      const existing = await db.profiles.toArray();
+      for (const p of existing) {
+        if (isLooksLikePhoneOrEmail(p.full_name, p.email, p.phone)) {
+          await db.profiles.delete(p.id);
+        }
+      }
+
+      applyActiveProfile(mockProfile);
       await db.profiles.put(mockProfile);
+      setIsOfflineMode(true);
       setLoading(false);
       return {};
     }
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {
-            full_name: fullName,
-            phone: phone || '',
+            full_name: cleanName,
+            phone: cleanPhone,
             avatar_url: 'cat-happy'
           }
         }
@@ -224,17 +365,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(data.user);
         const newProf: UserProfile = {
           id: data.user.id,
-          full_name: fullName,
-          email,
-          phone: phone || '',
+          full_name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
           avatar_url: 'cat-happy',
-          currency: 'USD',
-          timezone: 'UTC',
+          currency: 'PHP',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
           sync_status: 'synced',
           created_at: new Date().toISOString()
         };
-        setProfile(newProf);
-        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(newProf));
+        applyActiveProfile(newProf);
         await db.profiles.put(newProf);
       }
 
@@ -248,56 +388,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginUser = async (identifier: string, password: string) => {
     setLoading(true);
+    const cleanId = identifier.trim();
 
     if (!isSupabaseConfigured()) {
-      // Offline fallback login check
-      const cached = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
-      if (cached) {
-        loadCachedUser();
+      const matchedProfile = await findMatchingProfile(cleanId);
+      if (matchedProfile) {
+        applyActiveProfile(matchedProfile);
+        await db.profiles.put(matchedProfile);
+        setIsOfflineMode(true);
         setLoading(false);
         return {};
       }
-      // Mock log in
-      const mockId = 'user-' + Date.now();
-      const mockProf: UserProfile = {
-        id: mockId,
-        full_name: identifier.includes('@') ? identifier.split('@')[0] : identifier,
-        email: identifier.includes('@') ? identifier : `${identifier}@budgetcat.local`,
-        phone: identifier.includes('@') ? '' : identifier,
-        avatar_url: 'cat-happy',
-        currency: 'USD',
-        timezone: 'UTC',
-        sync_status: 'pending',
-        created_at: new Date().toISOString()
-      };
-      setProfile(mockProf);
-      setUser({
-        id: mockId,
-        email: mockProf.email,
-        user_metadata: { full_name: mockProf.full_name },
-        app_metadata: {},
-        aud: 'authenticated',
-        created_at: mockProf.created_at
-      } as User);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(mockProf));
-      await db.profiles.put(mockProf);
+
       setLoading(false);
-      return {};
+      return {
+        error: 'No account found for that email or phone number. Please create an account first so we know your Full Name.'
+      };
     }
 
     try {
-      let isEmail = identifier.includes('@');
-      let loginEmail = identifier;
+      const isEmail = cleanId.includes('@');
+      let loginEmail = cleanId;
 
-      // If user passed a phone number instead of email, query profiles or format email
       if (!isEmail) {
         const { data: prof } = await supabase
           .from('profiles')
-          .select('email')
-          .eq('phone', identifier)
+          .select('email, full_name, phone')
+          .eq('phone', cleanId)
           .single();
         if (prof?.email) {
           loginEmail = prof.email;
+        } else {
+          const localMatch = await findMatchingProfile(cleanId);
+          if (localMatch?.email) {
+            loginEmail = localMatch.email;
+          }
         }
       }
 
@@ -340,7 +465,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsOfflineMode(false);
       try {
         localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-        // Clear any Supabase local storage tokens
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -375,14 +499,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (data: Partial<UserProfile>) => {
     if (!profile) return { error: 'No user profile found' };
 
-    const updated = {
+    const updated: UserProfile = {
       ...profile,
       ...data,
       updated_at: new Date().toISOString()
     };
 
-    setProfile(updated);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(updated));
+    applyActiveProfile(updated);
     await db.profiles.put(updated);
 
     if (isSupabaseConfigured() && user) {

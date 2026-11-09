@@ -24,8 +24,8 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !email || !password) {
-      setErrorMsg('Please complete all required fields.');
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+      setErrorMsg('Please complete all required fields (Full Name, Email, Phone Number, and Password).');
       return;
     }
 
@@ -101,13 +101,15 @@ export default function RegisterPage() {
             />
 
             <Input
-              label="Phone Number (Optional)"
+              label="Phone Number"
+              type="tel"
               name="register-phone"
               autoComplete="off"
               placeholder=""
               leftIcon={<Phone className="w-4 h-4" />}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              required
             />
 
             <Input

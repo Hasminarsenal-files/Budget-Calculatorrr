@@ -6,6 +6,18 @@
   "bills": [],
   "savings_goals": [],
   "debts": [],
-  "profiles": [],
-  "last_updated": "2026-11-04T00:00:00.000Z"
+  "profiles": [
+    {
+      "id": "offline-1794194466557",
+      "full_name": "Hasmin E. Arsenal",
+      "email": "hasminarsenal05100321@gmail.com",
+      "phone": "09074168575",
+      "avatar_url": "cat-happy",
+      "currency": "PHP",
+      "timezone": "UTC",
+      "sync_status": "synced",
+      "created_at": "2026-11-09T03:21:06.557Z"
+    }
+  ],
+  "last_updated": "2026-11-09T04:19:30.000Z"
 }

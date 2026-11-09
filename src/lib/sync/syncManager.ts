@@ -110,6 +110,7 @@ class SyncManager {
         const userIdentifier = cachedUser?.email || cachedUser?.full_name || cachedUser?.id || 'default-user';
 
         // 1. Gather all local table data
+        const allLocalProfiles = await db.profiles.toArray();
         const localTables = {
           budgets: await db.budgets.toArray(),
           budget_categories: await db.budget_categories.toArray(),
@@ -118,7 +119,7 @@ class SyncManager {
           bills: await db.bills.toArray(),
           savings_goals: await db.savings_goals.toArray(),
           debts: await db.debts.toArray(),
-          profiles: cachedUser ? [cachedUser] : []
+          profiles: allLocalProfiles.length > 0 ? allLocalProfiles : (cachedUser ? [cachedUser] : [])
         };
 
         // 2. Push local data & pull server updates
@@ -144,6 +145,7 @@ class SyncManager {
             if (serverData.bills && serverData.bills.length > 0) await db.bills.bulkPut(serverData.bills);
             if (serverData.savings_goals && serverData.savings_goals.length > 0) await db.savings_goals.bulkPut(serverData.savings_goals);
             if (serverData.debts && serverData.debts.length > 0) await db.debts.bulkPut(serverData.debts);
+            if (serverData.profiles && serverData.profiles.length > 0) await db.profiles.bulkPut(serverData.profiles);
           }
 
           await db.sync_queue.clear();
