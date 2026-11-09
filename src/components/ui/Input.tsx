@@ -24,9 +24,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   className,
   id,
   type,
+  autoComplete,
+  onFocus,
+  onMouseDown,
   ...props
 }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
+  const disableAutofill = autoComplete === 'off' || autoComplete === 'new-password';
+  const [isReadOnly, setIsReadOnly] = useState(disableAutofill);
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
   const isPasswordField = type === 'password';
@@ -53,6 +58,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
           ref={ref}
           id={inputId}
           type={resolvedType}
+          autoComplete={autoComplete}
+          readOnly={disableAutofill ? isReadOnly : props.readOnly}
+          onMouseDown={(e) => {
+            if (disableAutofill && isReadOnly) setIsReadOnly(false);
+            onMouseDown?.(e);
+          }}
+          onFocus={(e) => {
+            if (disableAutofill && isReadOnly) setIsReadOnly(false);
+            onFocus?.(e);
+          }}
           className={twMerge(
             clsx(
               'w-full bg-white border border-[#EFE6DD] text-[#3A2E2B] placeholder-[#A39691] rounded-2xl px-4 py-2.5 text-sm transition-all duration-200 focus:outline-none focus:border-[#6E8B74] focus:ring-2 focus:ring-[#6E8B74]/20 disabled:opacity-50 disabled:bg-[#FAF6F0]',

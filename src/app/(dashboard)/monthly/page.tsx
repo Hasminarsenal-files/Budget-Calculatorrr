@@ -93,16 +93,6 @@ export default function MonthlyOverviewPage() {
     const colors = ['#6E8B74', '#E2856E', '#D99B26', '#8C7CA6', '#5A96B6'];
     const entries = Object.entries(map);
 
-    if (entries.length === 0) {
-      return [
-        { name: 'Groceries & Supplies', value: 540, color: '#6E8B74' },
-        { name: 'Dining & Outings', value: 320, color: '#E2856E' },
-        { name: 'Utilities & Bills', value: 280, color: '#D99B26' },
-        { name: 'Transport & Gas', value: 210, color: '#8C7CA6' },
-        { name: 'Entertainment', value: 180, color: '#5A96B6' }
-      ];
-    }
-
     return entries.map(([name, value], idx) => ({
       name,
       value,

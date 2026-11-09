@@ -76,10 +76,12 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} autoComplete="off" className="space-y-4">
             <Input
               label="Full Name"
-              placeholder="e.g. Whiskers Johnson"
+              name="register-full-name"
+              autoComplete="off"
+              placeholder=""
               leftIcon={<User className="w-4 h-4" />}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -89,7 +91,9 @@ export default function RegisterPage() {
             <Input
               label="Email Address"
               type="email"
-              placeholder="cat@budget.com"
+              name="register-email"
+              autoComplete="off"
+              placeholder=""
               leftIcon={<Mail className="w-4 h-4" />}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -98,7 +102,9 @@ export default function RegisterPage() {
 
             <Input
               label="Phone Number (Optional)"
-              placeholder="+1 555-0199"
+              name="register-phone"
+              autoComplete="off"
+              placeholder=""
               leftIcon={<Phone className="w-4 h-4" />}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -107,7 +113,9 @@ export default function RegisterPage() {
             <Input
               label="Password"
               type="password"
-              placeholder="At least 6 characters"
+              name="register-password"
+              autoComplete="new-password"
+              placeholder=""
               leftIcon={<Lock className="w-4 h-4" />}
               showPasswordToggle
               value={password}

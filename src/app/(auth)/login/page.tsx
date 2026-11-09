@@ -66,10 +66,12 @@ export default function LoginPage() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} autoComplete="off" className="space-y-4">
             <Input
               label="Email or Phone Number"
-              placeholder="e.g. cat@budget.com or +123456789"
+              name="login-identifier"
+              autoComplete="off"
+              placeholder=""
               leftIcon={<Mail className="w-4 h-4" />}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
@@ -80,7 +82,9 @@ export default function LoginPage() {
               <Input
                 label="Password"
                 type="password"
-                placeholder="••••••••"
+                name="login-password"
+                autoComplete="new-password"
+                placeholder=""
                 leftIcon={<Lock className="w-4 h-4" />}
                 showPasswordToggle
                 value={password}

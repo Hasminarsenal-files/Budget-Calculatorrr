@@ -34,6 +34,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let isMounted = true;
 
     async function initAuth() {
+      const FRESH_AUTH_KEY = 'budget_cat_fresh_auth_2026_11_09';
+      if (typeof window !== 'undefined' && !localStorage.getItem(FRESH_AUTH_KEY)) {
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+        await Promise.all([
+          db.profiles.clear(),
+          db.sync_queue.clear(),
+          db.transactions.clear(),
+          db.budgets.clear(),
+          db.budget_categories.clear(),
+          db.income.clear(),
+          db.bills.clear(),
+          db.savings_goals.clear(),
+          db.debts.clear()
+        ]);
+        localStorage.setItem(FRESH_AUTH_KEY, 'true');
+      }
+
       if (!isSupabaseConfigured()) {
         // Fallback offline mock session for demo/offline usage
         loadCachedUser();

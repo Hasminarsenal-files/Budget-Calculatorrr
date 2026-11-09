@@ -47,170 +47,6 @@ export default function DashboardPage() {
   const savings = useLiveQuery(() => db.savings_goals.toArray(), []) || [];
   const bills = useLiveQuery(() => db.bills.toArray(), []) || [];
 
-  // Seed sample initial data if completely empty & auto-align across devices
-  useEffect(() => {
-    async function seedInitialData() {
-      const now = new Date().toISOString();
-      const userId = profile?.id || 'default-user';
-
-      // 1. Force alignment of transactions to ensure ₱4,034 salary exists on all devices
-      const existingTx = await db.transactions.toArray();
-      const has4034 = existingTx.some(t => Math.round(t.amount) === 4034);
-
-      if (!has4034) {
-        await db.transactions.put({
-          id: 'tx-3',
-          user_id: userId,
-          description: 'Salary Compensation',
-          amount: 4034.00,
-          type: 'income',
-          payment_method: 'Bank',
-          transaction_date: now,
-          sync_status: 'synced',
-          created_at: now
-        });
-
-        const existingIncome = await db.income.toArray();
-        if (!existingIncome.some(i => Math.round(i.amount) === 4034)) {
-          await db.income.put({
-            id: 'inc-salary-4034',
-            user_id: userId,
-            source: 'Salary Compensation',
-            amount: 4034.00,
-            date: now.slice(0, 10),
-            notes: 'Bank Deposit',
-            sync_status: 'synced',
-            created_at: now
-          });
-        }
-      }
-
-      // 2. Force alignment of savings to ensure total savings equals ₱1,000.00
-      const existingSavings = await db.savings_goals.toArray();
-      for (const sg of existingSavings) {
-        if (sg.id === 'sg-1' && sg.current_amount !== 1000) {
-          await db.savings_goals.update(sg.id, { current_amount: 1000 });
-        }
-      }
-
-      const budgetCount = await db.budgets.count();
-      if (budgetCount === 0) {
-        const initialBudgets: Budget[] = [
-          {
-            id: 'b-1',
-            user_id: userId,
-            name: 'Monthly Household Budget',
-            budget_type: 'monthly',
-            total_budget: 4500,
-            spent_amount: 1850,
-            start_date: new Date().toISOString().slice(0, 10),
-            status: 'active',
-            sync_status: 'synced',
-            created_at: now
-          },
-          {
-            id: 'b-2',
-            user_id: userId,
-            name: 'Cebu Island Trip 🏝️',
-            budget_type: 'travel',
-            total_budget: 2500,
-            spent_amount: 920,
-            start_date: new Date().toISOString().slice(0, 10),
-            status: 'active',
-            sync_status: 'synced',
-            created_at: now
-          }
-        ];
-        await db.budgets.bulkPut(initialBudgets);
-
-        const txCount = await db.transactions.count();
-        if (txCount === 0) {
-          const sampleTx: Transaction[] = [
-            {
-              id: 'tx-1',
-              user_id: userId,
-              budget_id: 'b-1',
-              description: 'Supermarket Grocery & Food',
-              amount: 145.50,
-              type: 'expense',
-              payment_method: 'GCash',
-              transaction_date: new Date(Date.now() - 86400000).toISOString(),
-              sync_status: 'synced',
-              created_at: now
-            },
-            {
-              id: 'tx-2',
-              user_id: userId,
-              description: 'Primary Salary Direct Deposit',
-              amount: 3800.00,
-              type: 'income',
-              payment_method: 'Bank Transfer',
-              transaction_date: new Date(Date.now() - 172800000).toISOString(),
-              sync_status: 'synced',
-              created_at: now
-            },
-            {
-              id: 'tx-3',
-              user_id: userId,
-              description: 'Salary Compensation',
-              amount: 4034.00,
-              type: 'income',
-              payment_method: 'Bank',
-              transaction_date: now,
-              sync_status: 'synced',
-              created_at: now
-            }
-          ];
-          await db.transactions.bulkPut(sampleTx);
-        }
-
-        const billCount = await db.bills.count();
-        if (billCount === 0) {
-          await db.bills.bulkPut([
-            {
-              id: 'bill-1',
-              user_id: userId,
-              name: 'Electricity & Utility',
-              amount: 120.00,
-              due_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-              recurring: 'monthly',
-              status: 'pending',
-              sync_status: 'synced',
-              created_at: now
-            },
-            {
-              id: 'bill-2',
-              user_id: userId,
-              name: 'Fiber Internet Subscription',
-              amount: 65.00,
-              due_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-              recurring: 'monthly',
-              status: 'pending',
-              sync_status: 'synced',
-              created_at: now
-            }
-          ]);
-        }
-
-        const savingsCount = await db.savings_goals.count();
-        if (savingsCount === 0) {
-          await db.savings_goals.put({
-            id: 'sg-1',
-            user_id: userId,
-            name: 'New Laptop & Desk Setup',
-            target_amount: 3000,
-            current_amount: 1000,
-            target_date: '2026-12-31',
-            icon: 'Laptop',
-            sync_status: 'synced',
-            created_at: now
-          });
-        }
-      }
-    }
-    seedInitialData();
-  }, [profile]);
-
   // ─── Calculations (single source of truth: actual transactions) ───
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -238,16 +74,25 @@ export default function DashboardPage() {
   const budgetCap = primaryBudget.total_budget || 0;
   const budgetUsedPct = budgetCap > 0 ? Math.round((monthExpense / budgetCap) * 100) : 0;
 
-  const topGoal = savings[0] || { name: 'Savings Reserve', current_amount: 0, target_amount: 1 };
+  const topGoal = savings[0] || { name: 'Savings Reserve', current_amount: 0, target_amount: 0 };
   const goalProgressPct = topGoal.target_amount > 0 ? Math.round((topGoal.current_amount / topGoal.target_amount) * 100) : 0;
 
-  // Trend chart — previous months hardcoded for demo, current month from real data
-  const trendData = [
-    { month: 'May', Income: 3200, Expense: 2100 },
-    { month: 'Jun', Income: 3800, Expense: 2400 },
-    { month: 'Jul', Income: 4100, Expense: 2700 },
-    { month: now.toLocaleDateString('en-US', { month: 'short' }), Income: totalIncome, Expense: totalExpense }
-  ];
+  // Trend chart — built from real historical & current month data (last 4 months)
+  const trendData = Array.from({ length: 4 }, (_, idx) => {
+    const d = new Date(currentYear, currentMonth - (3 - idx), 1);
+    const m = d.getMonth();
+    const y = d.getFullYear();
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const mTxs = transactions.filter(t => {
+      const td = new Date(t.transaction_date);
+      return td.getMonth() === m && td.getFullYear() === y;
+    });
+    return {
+      month: label,
+      Income: mTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      Expense: mTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+    };
+  });
 
   // Pie chart — built from real current-month expense transactions
   const categoryMap: Record<string, number> = {};
@@ -256,14 +101,11 @@ export default function DashboardPage() {
     categoryMap[cat] = (categoryMap[cat] || 0) + t.amount;
   });
   const pieColors = ['#6E8B74', '#E2856E', '#D99B26', '#8C7CA6', '#5A96B6'];
-  const categoryPieData = Object.entries(categoryMap).length > 0
-    ? Object.entries(categoryMap).map(([name, value], i) => ({ name, value, color: pieColors[i % pieColors.length] }))
-    : [
-        { name: 'Groceries & Dining', value: 450, color: '#6E8B74' },
-        { name: 'Travel & Trips', value: 380, color: '#E2856E' },
-        { name: 'Bills & Subscriptions', value: 185, color: '#D99B26' },
-        { name: 'Savings Reserve', value: 850, color: '#5A96B6' }
-      ];
+  const categoryPieData = Object.entries(categoryMap).map(([name, value], i) => ({
+    name,
+    value,
+    color: pieColors[i % pieColors.length]
+  }));
 
   return (
     <AppShell>

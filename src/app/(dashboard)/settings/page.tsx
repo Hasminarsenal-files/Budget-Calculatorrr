@@ -119,14 +119,24 @@ export default function SettingsPage() {
   };
 
   const handleClearCache = async () => {
-    if (confirm('Are you sure you want to clear local IndexedDB cache? Local unsynced changes will be lost.')) {
+    if (confirm('Are you sure you want to clear all budget data and local cache? All records will be reset.')) {
       await db.sync_queue.clear();
       await db.transactions.clear();
       await db.budgets.clear();
+      await db.budget_categories.clear();
       await db.income.clear();
       await db.bills.clear();
       await db.savings_goals.clear();
       await db.debts.clear();
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reset: true })
+        });
+      } catch (e) {
+        console.warn('Failed to reset sync store:', e);
+      }
       window.location.reload();
     }
   };

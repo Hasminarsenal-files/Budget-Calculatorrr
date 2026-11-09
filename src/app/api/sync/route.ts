@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || Buffer.from('Z2l0aHViX3BhdF8xMUNFVkc0MkEwSGdJNFVtUWc2TmtnX3NqeTB6bVFqYlZRTDQ0OGc1cTBIUHBLMlgxOU9PYmppbmFiWTllWFZkTEJMQ0FGWkFMNVdUbDF5aGZUSw==', 'base64').toString('ascii');
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const REPO_OWNER = 'Hasminarsenal-files';
 const REPO_NAME = 'Budget-Calculatorrr';
 const FILE_PATH = 'data/cloud-store.json';
+const LOCAL_FILE_PATH = path.join(process.cwd(), 'data', 'cloud-store.json');
 
 interface UserDataStore {
   profiles?: any[];
@@ -17,126 +20,43 @@ interface UserDataStore {
   last_updated?: string;
 }
 
-// In-memory cache for ultra-fast responses
-let memoryCache: { data: UserDataStore; sha?: string; cachedAt: number } | null = null;
-
-// Initial canonical dataset (₱6,688.50 spendable balance)
 const DEFAULT_INITIAL_DATA: UserDataStore = {
-  budgets: [
-    {
-      id: 'b-1',
-      user_id: 'default-user',
-      name: 'Monthly Household Budget',
-      budget_type: 'monthly',
-      total_budget: 4500,
-      spent_amount: 1850,
-      start_date: new Date().toISOString().slice(0, 10),
-      status: 'active',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'b-2',
-      user_id: 'default-user',
-      name: 'Cebu Island Trip 🏝️',
-      budget_type: 'travel',
-      total_budget: 2500,
-      spent_amount: 920,
-      start_date: new Date().toISOString().slice(0, 10),
-      status: 'active',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    }
-  ],
-  transactions: [
-    {
-      id: 'tx-1',
-      user_id: 'default-user',
-      budget_id: 'b-1',
-      description: 'Supermarket Grocery & Food',
-      amount: 145.50,
-      type: 'expense',
-      payment_method: 'GCash',
-      transaction_date: new Date(Date.now() - 86400000).toISOString(),
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'tx-2',
-      user_id: 'default-user',
-      description: 'Primary Salary Direct Deposit',
-      amount: 3800.00,
-      type: 'income',
-      payment_method: 'Bank Transfer',
-      transaction_date: new Date(Date.now() - 172800000).toISOString(),
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'tx-3',
-      user_id: 'default-user',
-      description: 'Salary Compensation',
-      amount: 4034.00,
-      type: 'income',
-      payment_method: 'Bank',
-      transaction_date: new Date().toISOString(),
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    }
-  ],
-  income: [
-    {
-      id: 'inc-salary-4034',
-      user_id: 'default-user',
-      source: 'Salary Compensation',
-      amount: 4034.00,
-      date: new Date().toISOString().slice(0, 10),
-      notes: 'Direct Bank Deposit',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    }
-  ],
-  bills: [
-    {
-      id: 'bill-1',
-      user_id: 'default-user',
-      name: 'Electricity & Utility',
-      amount: 120.00,
-      due_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-      recurring: 'monthly',
-      status: 'pending',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'bill-2',
-      user_id: 'default-user',
-      name: 'Fiber Internet Subscription',
-      amount: 65.00,
-      due_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-      recurring: 'monthly',
-      status: 'pending',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    }
-  ],
-  savings_goals: [
-    {
-      id: 'sg-1',
-      user_id: 'default-user',
-      name: 'New Laptop & Desk Setup',
-      target_amount: 3000,
-      current_amount: 1000,
-      target_date: '2026-12-31',
-      icon: 'Laptop',
-      sync_status: 'synced',
-      created_at: new Date().toISOString()
-    }
-  ],
+  budgets: [],
+  budget_categories: [],
+  transactions: [],
+  income: [],
+  bills: [],
+  savings_goals: [],
   debts: [],
   profiles: [],
   last_updated: new Date().toISOString()
 };
+
+let memoryCache: { data: UserDataStore; sha?: string; cachedAt: number } | null = null;
+
+function readLocalStore(): UserDataStore {
+  try {
+    if (fs.existsSync(LOCAL_FILE_PATH)) {
+      const raw = fs.readFileSync(LOCAL_FILE_PATH, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn('[CloudSync] Failed to read local cloud-store.json:', err);
+  }
+  return { ...DEFAULT_INITIAL_DATA };
+}
+
+function writeLocalStore(data: UserDataStore) {
+  try {
+    const dir = path.dirname(LOCAL_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    // Ignore on read-only serverless filesystems
+  }
+}
 
 async function getRemoteData(): Promise<{ data: UserDataStore; sha?: string }> {
   try {
@@ -157,25 +77,40 @@ async function getRemoteData(): Promise<{ data: UserDataStore; sha?: string }> {
       return { data: parsed, sha: json.sha };
     }
   } catch (err) {
-    console.warn('[CloudSync] Failed to fetch remote file from GitHub:', err);
+    console.warn('[CloudSync] Failed to fetch remote file from GitHub, using local store:', err);
   }
 
-  if (memoryCache) {
-    return memoryCache;
-  }
-
-  return { data: DEFAULT_INITIAL_DATA };
+  const localData = readLocalStore();
+  memoryCache = { data: localData, cachedAt: Date.now() };
+  return { data: localData };
 }
 
 async function saveRemoteData(data: UserDataStore, existingSha?: string): Promise<boolean> {
+  writeLocalStore(data);
   try {
+    let shaToUse = existingSha;
+    if (!shaToUse) {
+      const checkRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'BudgetCatSync'
+        },
+        cache: 'no-store'
+      });
+      if (checkRes.status === 200) {
+        const checkJson = await checkRes.json();
+        shaToUse = checkJson.sha;
+      }
+    }
+
     const content = Buffer.from(JSON.stringify(data, null, 2)).toString('base64');
     const body: any = {
       message: `chore(sync): cloud synchronization [skip ci]`,
       content
     };
-    if (existingSha) {
-      body.sha = existingSha;
+    if (shaToUse) {
+      body.sha = shaToUse;
     }
 
     const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
@@ -200,18 +135,6 @@ async function saveRemoteData(data: UserDataStore, existingSha?: string): Promis
   return false;
 }
 
-// Helper to merge arrays of items by id
-function mergeById(existing: any[] = [], incoming: any[] = []) {
-  const map = new Map<string, any>();
-  existing.forEach((item) => {
-    if (item && item.id) map.set(item.id, item);
-  });
-  incoming.forEach((item) => {
-    if (item && item.id) map.set(item.id, { ...map.get(item.id), ...item });
-  });
-  return Array.from(map.values());
-}
-
 export async function GET() {
   try {
     const { data } = await getRemoteData();
@@ -231,26 +154,43 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { tables } = body;
+    const { tables, reset } = body;
 
     const { data: remoteData, sha } = await getRemoteData();
+
+    if (reset) {
+      const freshData: UserDataStore = {
+        ...DEFAULT_INITIAL_DATA,
+        last_updated: new Date().toISOString()
+      };
+      memoryCache = { data: freshData, sha, cachedAt: Date.now() };
+      await saveRemoteData(freshData, sha);
+      return NextResponse.json({
+        success: true,
+        data: freshData
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+        }
+      });
+    }
+
     const currentData: UserDataStore = { ...remoteData };
 
     if (tables) {
-      if (tables.budgets) currentData.budgets = mergeById(currentData.budgets, tables.budgets);
-      if (tables.budget_categories) currentData.budget_categories = mergeById(currentData.budget_categories, tables.budget_categories);
-      if (tables.transactions) currentData.transactions = mergeById(currentData.transactions, tables.transactions);
-      if (tables.income) currentData.income = mergeById(currentData.income, tables.income);
-      if (tables.bills) currentData.bills = mergeById(currentData.bills, tables.bills);
-      if (tables.savings_goals) currentData.savings_goals = mergeById(currentData.savings_goals, tables.savings_goals);
-      if (tables.debts) currentData.debts = mergeById(currentData.debts, tables.debts);
-      if (tables.profiles) currentData.profiles = mergeById(currentData.profiles, tables.profiles);
+      if (Array.isArray(tables.budgets)) currentData.budgets = tables.budgets;
+      if (Array.isArray(tables.budget_categories)) currentData.budget_categories = tables.budget_categories;
+      if (Array.isArray(tables.transactions)) currentData.transactions = tables.transactions;
+      if (Array.isArray(tables.income)) currentData.income = tables.income;
+      if (Array.isArray(tables.bills)) currentData.bills = tables.bills;
+      if (Array.isArray(tables.savings_goals)) currentData.savings_goals = tables.savings_goals;
+      if (Array.isArray(tables.debts)) currentData.debts = tables.debts;
+      if (Array.isArray(tables.profiles)) currentData.profiles = tables.profiles;
     }
 
     currentData.last_updated = new Date().toISOString();
     memoryCache = { data: currentData, sha, cachedAt: Date.now() };
 
-    // Asynchronously save to remote cloud store
     saveRemoteData(currentData, sha).catch((e) => console.warn('[CloudSync] Async save error:', e));
 
     return NextResponse.json({

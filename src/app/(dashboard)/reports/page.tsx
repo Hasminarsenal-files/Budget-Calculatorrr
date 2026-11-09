@@ -57,29 +57,52 @@ export default function ReportsPage() {
     });
   }, [transactions, timeframe, startDate, endDate]);
 
-  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 3800;
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 1065.50;
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
-  const monthlyBarData = [
-    { month: 'Jan', Income: 3200, Expense: 2100 },
-    { month: 'Feb', Income: 3500, Expense: 2300 },
-    { month: 'Mar', Income: 4000, Expense: 2500 },
-    { month: 'Apr', Income: 3800, Expense: 2200 },
-    { month: 'May', Income: 4200, Expense: 2600 },
-    { month: 'Jun', Income: 4100, Expense: 2400 },
-    { month: 'Jul', Income: 4300, Expense: 2700 },
-    { month: 'Aug', Income: totalIncome, Expense: totalExpense }
-  ];
+  const monthlyBarData = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      const mTxs = transactions.filter(t => {
+        const td = new Date(t.transaction_date);
+        return td.getMonth() === m && td.getFullYear() === y;
+      });
+      return {
+        month: label,
+        Income: mTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+        Expense: mTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+      };
+    });
+  }, [transactions]);
 
-  const categoryBreakdownData = [
-    { name: 'Groceries & Dining', value: 650, color: '#6E8B74' },
-    { name: 'Travel & Trips', value: 850, color: '#E2856E' },
-    { name: 'Bills & Utilities', value: 340, color: '#D99B26' },
-    { name: 'Personal & Gala', value: 240, color: '#8C7CA6' },
-    { name: 'Savings & Reserve', value: 1200, color: '#5A96B6' }
-  ];
+  const categoryBreakdownData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredTransactions
+      .filter(t => t.type === 'expense')
+      .forEach(t => {
+        const cat = t.notes || t.description || 'General';
+        map[cat] = (map[cat] || 0) + t.amount;
+      });
+    const colors = ['#6E8B74', '#E2856E', '#D99B26', '#8C7CA6', '#5A96B6'];
+    return Object.entries(map).map(([name, value], i) => ({
+      name,
+      value,
+      color: colors[i % colors.length]
+    }));
+  }, [filteredTransactions]);
+
+  const topCategory = categoryBreakdownData.length > 0
+    ? [...categoryBreakdownData].sort((a, b) => b.value - a.value)[0]
+    : null;
+  const topCategoryPct = topCategory && totalExpense > 0
+    ? `${Math.round((topCategory.value / totalExpense) * 100)}% of expenses`
+    : 'No expenses yet';
 
   return (
     <AppShell>
@@ -144,10 +167,10 @@ export default function ReportsPage() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <StatCard title="Savings Rate" amount={`${savingsRate}%`} change="+4.2%" changeType="positive" catMood="happy" badgeText="Velocity" />
+          <StatCard title="Savings Rate" amount={`${savingsRate}%`} changeType="positive" catMood="happy" badgeText="Velocity" />
           <StatCard title="Net Cashflow" amount={`₱${netSavings.toLocaleString()}`} changeType="positive" icon={<TrendingUp className="w-5 h-5 text-[#6E8B74]" />} />
           <StatCard title="Avg Daily Spend" amount={`₱${(totalExpense / 30).toFixed(2)}`} changeType="neutral" icon={<TrendingDown className="w-5 h-5 text-[#E2856E]" />} />
-          <StatCard title="Top Category" amount="Travel & Trips" subtitle="32% of expenses" catMood="saving" />
+          <StatCard title="Top Category" amount={topCategory ? topCategory.name : 'None'} subtitle={topCategoryPct} catMood="saving" />
         </div>
 
         {/* Charts Row */}

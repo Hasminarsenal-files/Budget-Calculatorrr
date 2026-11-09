@@ -32,8 +32,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }, [loading, user, profile, router]);
 
   useEffect(() => {
-    // Initial sync
-    syncManager.sync();
+    async function initAndSync() {
+      const FRESH_START_KEY = 'budget_cat_fresh_start_2026_11_04';
+      if (typeof window !== 'undefined' && !localStorage.getItem(FRESH_START_KEY)) {
+        await Promise.all([
+          db.sync_queue.clear(),
+          db.transactions.clear(),
+          db.budgets.clear(),
+          db.budget_categories.clear(),
+          db.income.clear(),
+          db.bills.clear(),
+          db.savings_goals.clear(),
+          db.debts.clear()
+        ]);
+        localStorage.setItem(FRESH_START_KEY, 'true');
+      }
+      syncManager.sync();
+    }
+    initAndSync();
 
     // Sync on tab focus or when network comes back online
     const handleFocus = () => {

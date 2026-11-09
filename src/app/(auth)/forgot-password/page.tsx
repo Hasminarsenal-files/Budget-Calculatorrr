@@ -65,11 +65,13 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
             <Input
               label="Email Address"
               type="email"
-              placeholder="cat@budget.com"
+              name="reset-email"
+              autoComplete="off"
+              placeholder=""
               leftIcon={<Mail className="w-4 h-4" />}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
